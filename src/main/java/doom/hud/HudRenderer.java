@@ -306,6 +306,13 @@ public class HudRenderer {
         return (int) l[2] + i;
     }
 
+    /** -1 / +1 si el punto cae en la mitad izquierda / derecha de la zona del valor; 0 en otro caso. */
+    public int sideAt(double vx) {
+        double right = CW / 2 + MENU_W / 2;
+        if (vx < right - 230 || vx > right) return 0;
+        return vx < right - 115 ? -1 : 1;
+    }
+
     private void drawMenu(GraphicsContext gc, World world) {
         java.util.List<World.Row> rows = world.menuRows();
         double[] l = layout(world, rows.size());

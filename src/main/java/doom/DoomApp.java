@@ -108,7 +108,7 @@ public class DoomApp extends Application {
                     int row = hudRenderer.rowAt(world, virtualX(e), virtualY(e));
                     if (row >= 0) {
                         world.menuSelect(row);
-                        world.menuActivate();
+                        world.menuClick(hudRenderer.sideAt(virtualX(e)));
                         resetMouse();
                     }
                 } else if (e.getButton() == MouseButton.SECONDARY) {

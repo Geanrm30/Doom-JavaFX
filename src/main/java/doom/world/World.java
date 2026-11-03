@@ -308,6 +308,13 @@ public class World {
         onFullscreen.accept(on);
     }
 
+    /** Clic sobre una fila: dir -1/+1 si se pulso la flecha izquierda/derecha del valor, 0 para activar. */
+    public void menuClick(int dir) {
+        boolean adjustable = (screen == Screen.MAIN && menuIndex == 2) || (screen == Screen.OPTIONS && menuIndex <= 3);
+        if (dir != 0 && adjustable) menuAdjust(dir);
+        else menuActivate();
+    }
+
     public void menuActivate() {
         switch (screen) {
             case MAIN -> {
@@ -325,7 +332,7 @@ public class World {
             }
             case OPTIONS -> {
                 switch (menuIndex) {
-                    case 0 -> menuAdjust(1);
+                    case 0 -> { progress.sensitivity = progress.sensitivity % 10 + 1; progress.save(); }
                     case 1, 2, 3 -> menuAdjust(1);
                     case 4 -> {
                         if (confirmReset) {
