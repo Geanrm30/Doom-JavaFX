@@ -23,6 +23,11 @@ public final class Level {
     public double startX = 1.5, startY = 1.5, startAngle;
     public final List<Thing> things = new ArrayList<>();
     public final boolean[][] seen;
+    /** Apertura de las puertas (0 cerrada, 1 abierta) y su fase: 0 reposo, 1 abriendo, 2 abierta, 3 cerrando. */
+    private final float[][] doorOpen;
+    private final byte[][] doorPhase;
+    private final float[][] doorTimer;
+    private static final double DOOR_SPEED = 1.6, DOOR_HOLD = 4.5;
 
     private Level(String name, char[][] cells, int[] ceiling, int[] floor, double fog) {
         this.name = name;
@@ -33,6 +38,9 @@ public final class Level {
         this.floor = floor;
         this.fog = fog;
         this.seen = new boolean[height][width];
+        this.doorOpen = new float[height][width];
+        this.doorPhase = new byte[height][width];
+        this.doorTimer = new float[height][width];
     }
 
     /** Cuenta cuantos archivos levelN.txt existen consecutivamente desde 1. */
@@ -120,12 +128,74 @@ public final class Level {
         return cells[cy][cx];
     }
 
-    public boolean isWall(int cx, int cy) {
-        return cell(cx, cy) != '.';
+    public static boolean isDoor(char c) {
+        return c == 'D' || c == 'R' || c == 'U';
     }
 
+    /** Apertura de la puerta en la celda (0 si no es puerta). */
+    public double openness(int cx, int cy) {
+        if (cx < 0 || cy < 0 || cx >= width || cy >= height) return 0;
+        return isDoor(cells[cy][cx]) ? doorOpen[cy][cx] : 0;
+    }
+
+    public boolean isWall(int cx, int cy) {
+        char c = cell(cx, cy);
+        if (c == '.') return false;
+        if (isDoor(c)) return doorOpen[cy][cx] < 0.8f;
+        return true;
+    }
+
+    /** Empieza a abrir la puerta; si ya esta abierta, reinicia la espera. */
     public void open(int cx, int cy) {
-        if (cx >= 0 && cy >= 0 && cx < width && cy < height) cells[cy][cx] = '.';
+        if (cx < 0 || cy < 0 || cx >= width || cy >= height) return;
+        if (!isDoor(cells[cy][cx])) {
+            cells[cy][cx] = '.';
+            return;
+        }
+        if (doorPhase[cy][cx] == 2) {
+            doorTimer[cy][cx] = (float) DOOR_HOLD;
+        } else if (doorPhase[cy][cx] != 1) {
+            doorPhase[cy][cx] = 1;
+        }
+    }
+
+    /** True si la puerta empezo a cerrarse en este paso (para el sonido). */
+    public interface DoorListener {
+        boolean blocked(int cx, int cy);
+        void closing(int cx, int cy);
+    }
+
+    public void updateDoors(double dt, DoorListener l) {
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                byte ph = doorPhase[y][x];
+                if (ph == 0) continue;
+                if (ph == 1) {
+                    doorOpen[y][x] += (float) (DOOR_SPEED * dt);
+                    if (doorOpen[y][x] >= 1f) {
+                        doorOpen[y][x] = 1f;
+                        doorPhase[y][x] = 2;
+                        doorTimer[y][x] = (float) DOOR_HOLD;
+                    }
+                } else if (ph == 2) {
+                    doorTimer[y][x] -= (float) dt;
+                    if (doorTimer[y][x] <= 0 && !l.blocked(x, y)) {
+                        doorPhase[y][x] = 3;
+                        l.closing(x, y);
+                    }
+                } else {
+                    if (l.blocked(x, y)) {
+                        doorPhase[y][x] = 1; // algo se interpone: vuelve a abrirse
+                    } else {
+                        doorOpen[y][x] -= (float) (DOOR_SPEED * 0.7 * dt);
+                        if (doorOpen[y][x] <= 0f) {
+                            doorOpen[y][x] = 0f;
+                            doorPhase[y][x] = 0;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     public boolean lineOfSight(double x0, double y0, double x1, double y1) {

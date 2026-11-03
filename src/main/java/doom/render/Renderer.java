@@ -48,10 +48,33 @@ public class Renderer {
             int side = 0;
             boolean hit = false;
             int guard = 0;
+            // puerta a medio abrir: se recuerda y el rayo sigue hasta la pared del fondo
+            boolean hasDoor = false;
+            double dPerp = 0, dWallX = 0, dOpen = 0;
+            int dSide = 0;
+            char dCh = 'D';
             while (!hit && guard++ < 96) {
                 if (sideX < sideY) { sideX += deltaX; mapX += stepX; side = 0; }
                 else               { sideY += deltaY; mapY += stepY; side = 1; }
-                if (level.isWall(mapX, mapY)) hit = true;
+                char cc0 = level.cell(mapX, mapY);
+                if (cc0 == '.') continue;
+                if (Level.isDoor(cc0)) {
+                    double o = level.openness(mapX, mapY);
+                    if (o >= 0.999) continue;
+                    if (o > 0.001) {
+                        if (!hasDoor) {
+                            hasDoor = true;
+                            dOpen = o;
+                            dSide = side;
+                            dCh = cc0;
+                            dPerp = Math.max(0.05, side == 0 ? sideX - deltaX : sideY - deltaY);
+                            double wx = side == 0 ? player.y + dPerp * rayY : player.x + dPerp * rayX;
+                            dWallX = wx - Math.floor(wx);
+                        }
+                        continue;
+                    }
+                }
+                hit = true;
             }
 
             double perp = side == 0 ? sideX - deltaX : sideY - deltaY;
@@ -86,6 +109,23 @@ public class Renderer {
                 int texY = (int) texPos & (TEX - 1);
                 texPos += step;
                 pixels[y * W + x] = ColorUtils.shade(tex[texY * TEX + texX], light);
+            }
+
+            if (hasDoor) {
+                int dLine = (int) (H / dPerp);
+                int dTop = -dLine / 2 + H / 2;
+                int dBottom = dTop + (int) (dLine * (1 - dOpen));
+                int[] dtex = textures.data[TextureManager.indexFor(dCh)];
+                int dTexX = (int) (dWallX * TEX);
+                if ((dSide == 0 && rayX > 0) || (dSide == 1 && rayY < 0)) dTexX = TEX - 1 - dTexX;
+                double dStep = (double) TEX / dLine;
+                double dLight = Math.max(0.12, Math.min(1.0, 1.0 / (1.0 + dPerp * level.fog)));
+                if (dSide == 1) dLight *= 0.72;
+                for (int y = Math.max(0, dTop); y <= Math.min(H - 1, dBottom - 1); y++) {
+                    int dTexY = (int) ((y - dTop) * dStep + dOpen * TEX) & (TEX - 1);
+                    pixels[y * W + x] = ColorUtils.shade(dtex[dTexY * TEX + dTexX], dLight);
+                }
+                if (dOpen < 0.7) zBuf[x] = Math.min(zBuf[x], dPerp);
             }
         }
 

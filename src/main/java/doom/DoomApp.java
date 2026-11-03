@@ -80,7 +80,7 @@ public class DoomApp extends Application {
                 e.consume();
                 return;
             }
-            if (code == KeyCode.BACK_QUOTE || code == KeyCode.F2) {
+            if (isConsoleKey(e)) {
                 world.toggleConsole();
                 input.releaseAll();
                 resetMouse();
@@ -225,6 +225,15 @@ public class DoomApp extends Application {
         warping = false;
         ignoreUntil = System.nanoTime() + SETTLE_NANOS;
         input.takeMouseTurn();
+    }
+
+    /** Teclas que abren la consola en cualquier distribucion de teclado. */
+    private static boolean isConsoleKey(javafx.scene.input.KeyEvent e) {
+        KeyCode c = e.getCode();
+        if (c == KeyCode.BACK_QUOTE || c == KeyCode.DEAD_GRAVE || c == KeyCode.F2) return true;
+        if (c == KeyCode.T && e.isControlDown()) return true;
+        String t = e.getText();
+        return t != null && t.length() == 1 && "`\u00ba\u00aa\u00b0|\u00ac\\".indexOf(t.charAt(0)) >= 0;
     }
 
     private void onMouse(Stage stage, Scene scene, MouseEvent e) {

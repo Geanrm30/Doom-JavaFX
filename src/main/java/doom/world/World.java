@@ -562,6 +562,19 @@ public class World {
         }
 
         sound.listener(p.x, p.y, p.angle);
+        level.updateDoors(dt, new Level.DoorListener() {
+            public boolean blocked(int cx, int cy) {
+                if (Math.abs(player.x - cx - 0.5) < 0.8 && Math.abs(player.y - cy - 0.5) < 0.8) return true;
+                for (Enemy e : enemies) {
+                    if (e.alive && Math.abs(e.x - cx - 0.5) < 0.8 && Math.abs(e.y - cy - 0.5) < 0.8) return true;
+                }
+                return false;
+            }
+
+            public void closing(int cx, int cy) {
+                sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5);
+            }
+        });
         for (Enemy e : enemies) e.update(dt, this);
         for (Projectile pr : projectiles) pr.update(dt, this);
         projectiles.removeIf(pr -> !pr.alive);
