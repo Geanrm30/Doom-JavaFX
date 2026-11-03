@@ -15,11 +15,52 @@ public class Renderer {
     public final double[] zBuf = new double[Constants.SCREEN_W];
     public final WritableImage frame = new WritableImage(Constants.SCREEN_W, Constants.SCREEN_H);
 
+    private final Flats flats = new Flats();
     private final TextureManager textures;
     private final SpriteRenderer spriteRenderer = new SpriteRenderer();
 
     public Renderer(TextureManager textures) {
         this.textures = textures;
+    }
+
+    /** Suelo y techo con textura (floor casting): una pasada por fila de pantalla. */
+    private void drawFlats(Player player, World world, double dirX, double dirY, double planeX, double planeY) {
+        int W = Constants.SCREEN_W, H = Constants.SCREEN_H;
+        Level level = world.level;
+        int[] cc = level.ceiling, fc = level.floor;
+        int kind = Math.floorMod(world.levelIndex, Flats.KINDS);
+        float[] fl = flats.floor[kind], ce = flats.ceiling[kind];
+        int mask = Flats.N - 1;
+
+        int dark = ColorUtils.rgb(cc[0] / 4, cc[1] / 4, cc[2] / 4);
+        for (int y = H / 2 - 2; y <= H / 2; y++) {
+            for (int x = 0; x < W; x++) pixels[y * W + x] = dark;
+        }
+
+        for (int y = H / 2 + 1; y < H; y++) {
+            double rowDist = (0.5 * H) / (y - H / 2.0);
+            double light = Math.max(0.10, Math.min(1.0, 1.0 / (1.0 + rowDist * level.fog))) * 1.3;
+            double fx = player.x + rowDist * (dirX - planeX);
+            double fy = player.y + rowDist * (dirY - planeY);
+            double sx = rowDist * 2 * planeX / W, sy = rowDist * 2 * planeY / W;
+            int ceilRow = (H - 1 - y) * W, floorRow = y * W;
+            for (int x = 0; x < W; x++) {
+                int tx = (int) (fx * Flats.N) & mask, ty = (int) (fy * Flats.N) & mask;
+                int t = ty * Flats.N + tx;
+                double lf = fl[t] * light * 1.35;
+                pixels[floorRow + x] = ColorUtils.rgb((int) (fc[0] * lf), (int) (fc[1] * lf), (int) (fc[2] * lf));
+                float cl = ce[t];
+                if (cl >= Flats.LAMP) {
+                    int v = (int) (235 * Math.max(0.5, Math.min(1.0, light)));
+                    pixels[ceilRow + x] = ColorUtils.rgb(v, v, (int) (v * 0.88));
+                } else {
+                    double lc = cl * light * 1.4;
+                    pixels[ceilRow + x] = ColorUtils.rgb((int) (cc[0] * lc), (int) (cc[1] * lc), (int) (cc[2] * lc));
+                }
+                fx += sx;
+                fy += sy;
+            }
+        }
     }
 
     public void render(Player player, World world) {
@@ -29,6 +70,8 @@ public class Renderer {
         int[] cc = level.ceiling, fc = level.floor;
         double dirX = Math.cos(player.angle), dirY = Math.sin(player.angle);
         double planeX = -dirY * 0.66, planeY = dirX * 0.66;
+
+        drawFlats(player, world, dirX, dirY, planeX, planeY);
 
         for (int x = 0; x < W; x++) {
             double camX = 2.0 * x / W - 1;
@@ -84,16 +127,6 @@ public class Renderer {
             int lineH = (int) (H / perp);
             int start = Math.max(0, -lineH / 2 + H / 2);
             int end   = Math.min(H - 1, lineH / 2 + H / 2);
-
-            for (int y = 0; y < H; y++) {
-                if (y < start) {
-                    double f = 0.45 + 1.0 * (1.0 - (double) y / (H / 2.0));
-                    pixels[y * W + x] = ColorUtils.rgb((int) (cc[0] * f), (int) (cc[1] * f), (int) (cc[2] * f));
-                } else if (y > end) {
-                    double f = 0.35 + 1.0 * ((double) (y - H / 2) / (H / 2.0));
-                    pixels[y * W + x] = ColorUtils.rgb((int) (fc[0] * f), (int) (fc[1] * f), (int) (fc[2] * f));
-                }
-            }
 
             int[] tex = textures.data[TextureManager.indexFor(level.cell(mapX, mapY))];
             double wallX = side == 0 ? player.y + perp * rayY : player.x + perp * rayX;
