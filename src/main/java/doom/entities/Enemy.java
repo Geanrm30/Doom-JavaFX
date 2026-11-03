@@ -17,7 +17,8 @@ public class Enemy extends Sprite {
     public boolean awake = false;
     public double hurt, cooldown;
     /** Animacion: fase de caminata, tiempo de ataque restante y tiempo desde la muerte. */
-    private double walkPhase, attackAnim, deathTime;
+    private double walkPhase, attackAnim, deathTime, painGap;
+    private boolean sighted, painPending;
 
     public Enemy(EnemyType type, double x, double y) {
         this.type = type;
@@ -35,6 +36,7 @@ public class Enemy extends Sprite {
         hp -= damage;
         hurt = 0.15;
         awake = true;
+        if (hp > 0 && RND.nextDouble() < 0.45) painPending = true;
         if (hp <= 0) {
             alive = false;
             lift = 0;
@@ -52,12 +54,22 @@ public class Enemy extends Sprite {
         if (hurt > 0) hurt -= dt;
         if (cooldown > 0) cooldown -= dt;
         if (attackAnim > 0) attackAnim -= dt;
+        if (painGap > 0) painGap -= dt;
+        if (painPending && painGap <= 0) {
+            w.sound.play(painSound(), x, y);
+            painGap = 0.5;
+        }
+        painPending = false;
 
         double dx = p.x - x, dy = p.y - y;
         double dist = Math.hypot(dx, dy);
         boolean los = dist < 16 && w.level.lineOfSight(x, y, p.x, p.y);
         if (los) awake = true;
         if (!awake) return;
+        if (!sighted) {
+            sighted = true;
+            w.sound.play(sightSound(), x, y);
+        }
 
         double stop = switch (type) {
             case ZOMBIE -> 3.5;
@@ -77,17 +89,18 @@ public class Enemy extends Sprite {
 
         if (cooldown > 0) return;
         if (type.meleeDmg > 0 && dist < 1.3) {
+            w.sound.play(type == EnemyType.DEMON ? SoundFx.BITE : SoundFx.CLAW, x, y);
             w.hurtPlayer(type.meleeDmg);
             cooldown = type.meleeCd;
             attackAnim = 0.35;
         } else if (type.ranged != EnemyType.Ranged.NONE && los && dist < 13) {
             if (type.ranged == EnemyType.Ranged.HITSCAN) {
-                w.sound.play(SoundFx.ZOMBIE_SHOT);
+                w.sound.play(SoundFx.ZOMBIE_SHOT, x, y);
                 double chance = Math.max(0.2, 0.8 - dist * 0.045);
                 if (RND.nextDouble() < chance) w.hurtPlayer(type.rangedDmg + RND.nextInt(4));
             } else {
                 double speed = type.isBoss() ? 6.0 : type == EnemyType.BARON ? 5.5 : 4.2;
-                w.sound.play(SoundFx.FIREBALL);
+                w.sound.play(SoundFx.FIREBALL, x, y);
                 double[] spread = type == EnemyType.CYBER ? new double[]{-0.2, 0, 0.2} : new double[]{0};
                 for (double s : spread) {
                     double c = Math.cos(s), sn = Math.sin(s);
@@ -111,6 +124,28 @@ public class Enemy extends Sprite {
             if (o != this && o.alive && Math.abs(o.x - nx) < 0.55 && Math.abs(o.y - ny) < 0.55) return false;
         }
         return true;
+    }
+
+    private int sightSound() {
+        return switch (type) {
+            case ZOMBIE -> SoundFx.SIGHT_HUMAN;
+            case IMP -> SoundFx.SIGHT_IMP;
+            case DEMON -> SoundFx.SIGHT_DEMON;
+            case CACO -> SoundFx.SIGHT_CACO;
+            case BARON -> SoundFx.SIGHT_DEMON;
+            default -> SoundFx.SIGHT_BOSS;
+        };
+    }
+
+    private int painSound() {
+        return switch (type) {
+            case ZOMBIE -> SoundFx.PAIN_HUMAN;
+            case IMP -> SoundFx.PAIN_IMP;
+            case DEMON -> SoundFx.PAIN_DEMON;
+            case CACO -> SoundFx.PAIN_CACO;
+            case BARON -> SoundFx.PAIN_DEMON;
+            default -> SoundFx.PAIN_BOSS;
+        };
     }
 
     private int frame() {

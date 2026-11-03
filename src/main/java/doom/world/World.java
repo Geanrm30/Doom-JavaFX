@@ -62,6 +62,7 @@ public class World {
     public World() {
         progress.unlocked = Math.max(1, Math.min(progress.unlocked, Math.max(1, levelCount)));
         sound.muted = sound.muted || progress.muted;
+        sound.volume = progress.volume;
     }
 
     public boolean isUnlocked(int level) {
@@ -231,7 +232,7 @@ public class World {
             case OPTIONS -> {
                 r.add(new Row("SENSIBILIDAD DEL RATON", progress.sensitivity + " / 10", true));
                 r.add(new Row("GIRO CON EL RATON", progress.mouseLook ? "SI" : "NO", true));
-                r.add(new Row("SONIDO", sound.muted ? "NO" : "SI", true));
+                r.add(new Row("VOLUMEN", sound.muted ? "SILENCIO" : progress.volume + " / 10", true));
                 r.add(new Row("PANTALLA COMPLETA", progress.fullscreen ? "SI" : "NO", true));
                 r.add(new Row(confirmReset ? "SEGURO? PULSA ENTER OTRA VEZ" : "BORRAR PROGRESO", "", true));
                 r.add(new Row("VOLVER", "", true));
@@ -262,6 +263,7 @@ public class World {
         int n = menuRows().size();
         menuIndex = (menuIndex + dir + n) % n;
         confirmReset = false;
+        sound.play(SoundFx.MENU_MOVE);
     }
 
     public void menuSelect(int index) {
@@ -295,7 +297,12 @@ public class World {
             switch (menuIndex) {
                 case 0 -> progress.sensitivity = Math.max(1, Math.min(10, progress.sensitivity + dir));
                 case 1 -> progress.mouseLook = !progress.mouseLook;
-                case 2 -> { sound.muted = !sound.muted; progress.muted = sound.muted; }
+                case 2 -> {
+                    progress.volume = Math.max(0, Math.min(10, progress.volume + dir));
+                    sound.volume = progress.volume;
+                    if (dir > 0 && progress.muted) { progress.muted = false; sound.muted = false; }
+                    sound.play(SoundFx.PICKUP);
+                }
                 case 3 -> setFullscreen(!progress.fullscreen);
                 default -> { return; }
             }
@@ -316,6 +323,7 @@ public class World {
     }
 
     public void menuActivate() {
+        sound.play(SoundFx.MENU_SELECT);
         switch (screen) {
             case MAIN -> {
                 switch (menuIndex) {
@@ -333,7 +341,12 @@ public class World {
             case OPTIONS -> {
                 switch (menuIndex) {
                     case 0 -> { progress.sensitivity = progress.sensitivity % 10 + 1; progress.save(); }
-                    case 1, 2, 3 -> menuAdjust(1);
+                    case 2 -> {
+                        progress.volume = progress.volume >= 10 ? 0 : progress.volume + 1;
+                        sound.volume = progress.volume;
+                        progress.save();
+                    }
+                    case 1, 3 -> menuAdjust(1);
                     case 4 -> {
                         if (confirmReset) {
                             progress.resetProgress();
@@ -479,6 +492,7 @@ public class World {
             tryFire();
         }
 
+        sound.listener(p.x, p.y, p.angle);
         for (Enemy e : enemies) e.update(dt, this);
         for (Projectile pr : projectiles) pr.update(dt, this);
         projectiles.removeIf(pr -> !pr.alive);
@@ -567,7 +581,7 @@ public class World {
         }
         if (pk.type != Pickup.RED_KEY && pk.type != Pickup.BLUE_KEY) items++;
         p.pickFlash = 0.2;
-        sound.play(SoundFx.PICKUP);
+        sound.play(pk.type == Pickup.RED_KEY || pk.type == Pickup.BLUE_KEY ? SoundFx.KEY : SoundFx.PICKUP);
         say(msg, 2.0);
         return true;
     }
@@ -581,13 +595,13 @@ public class World {
             char c = level.cell(cx, cy);
             if (c == '.') continue;
             switch (c) {
-                case 'D' -> { level.open(cx, cy); sound.play(SoundFx.DOOR); }
+                case 'D' -> { level.open(cx, cy); sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5); }
                 case 'R' -> {
-                    if (p.redKey) { level.open(cx, cy); sound.play(SoundFx.DOOR); }
+                    if (p.redKey) { level.open(cx, cy); sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5); }
                     else { say("Necesitas la llave ROJA", 2.0); sound.play(SoundFx.DENIED); }
                 }
                 case 'U' -> {
-                    if (p.blueKey) { level.open(cx, cy); sound.play(SoundFx.DOOR); }
+                    if (p.blueKey) { level.open(cx, cy); sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5); }
                     else { say("Necesitas la llave AZUL", 2.0); sound.play(SoundFx.DENIED); }
                 }
                 case 'X' -> {
@@ -675,7 +689,7 @@ public class World {
         if (!b.alive) return;
         b.alive = false;
         effects.add(new Effect(b.x, b.y));
-        sound.play(SoundFx.EXPLODE);
+        sound.play(SoundFx.EXPLODE, b.x, b.y);
         double radius = 3.0;
         for (Barrel o : barrels) {
             if (o.alive && Math.hypot(o.x - b.x, o.y - b.y) < radius) explode(o);
@@ -699,7 +713,14 @@ public class World {
             say("JEFE DERROTADO: la salida esta abierta", 4.0);
             sound.play(SoundFx.POWERUP);
         }
-        sound.play(SoundFx.ENEMY_DIE);
+        sound.play(switch (e.type) {
+            case ZOMBIE -> SoundFx.DIE_HUMAN;
+            case IMP -> SoundFx.DIE_IMP;
+            case DEMON -> SoundFx.DIE_DEMON;
+            case CACO -> SoundFx.DIE_CACO;
+            case BARON -> SoundFx.DIE_DEMON;
+            default -> SoundFx.DIE_BOSS;
+        }, e.x, e.y);
         if (e.type == EnemyType.ZOMBIE && rnd.nextDouble() < 0.8) {
             pickups.add(new Pickup(e.x, e.y, Pickup.CLIP));
         }
