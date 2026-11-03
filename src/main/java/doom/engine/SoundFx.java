@@ -24,7 +24,8 @@ public class SoundFx {
             DIE_HUMAN = 25, DIE_IMP = 26, DIE_DEMON = 27, DIE_CACO = 28, DIE_BOSS = 29,
             CLAW = 30, BITE = 31, MENU_MOVE = 32, MENU_SELECT = 33, KEY = 34, EMPTY = 35, PUMP = 36,
             ROCKET = 37, PLASMA = 38,
-            COUNT = 39;
+            MAG_OUT = 39, MAG_IN = 40, RACK = 41, SHELL = 42, SLASH = 43, SLASH_HIT = 44, EXECUTE = 45,
+            COUNT = 46;
 
     static final int RATE = 44100;
     private static final int MAX_VOICES = 24;
@@ -276,6 +277,14 @@ public class SoundFx {
         bank[DIE_DEMON] = concat(voice(new double[]{120, 40}, 1.0, 420, 800, 0.35, 1.0, 4), thud(0.5));
         bank[DIE_CACO] = voice(new double[]{140, 40}, 1.0, 520, 1300, 0.3, 0.9, 16);
         bank[DIE_BOSS] = concat(voice(new double[]{60, 25}, 1.8, 330, 700, 0.35, 1.1, 3), explosion(r));
+        bank[MAG_OUT] = concat(tick(700, 0.04, 0.7), silence(0.05), tick(400, 0.05, 0.5));
+        bank[MAG_IN] = concat(tick(300, 0.05, 0.9), silence(0.03), tick(1200, 0.02, 0.5));
+        bank[RACK] = concat(tick(520, 0.03, 0.7), silence(0.07), tick(240, 0.05, 0.9));
+        bank[SHELL] = concat(tick(1100, 0.025, 0.6), silence(0.02), tick(620, 0.03, 0.5));
+        bank[SLASH] = swish(r, 0.2, 1.0);
+        bank[SLASH_HIT] = concat(swish(r, 0.08, 0.6), thud(0.45), tick(2400, 0.02, 0.3));
+        bank[EXECUTE] = concat(swish(r, 0.16, 1.0), silence(0.08), swish(r, 0.16, 1.1), thud(0.7),
+                voice(new double[]{140, 60}, 0.35, 500, 900, 0.3, 0.8, 6));
         bank[ENEMY_DIE] = bank[DIE_HUMAN];
         bank[BOSS] = bank[SIGHT_BOSS];
     }

@@ -57,6 +57,9 @@ public class World {
     /** 0 facil, 1 normal, 2 dificil: cambia el dano que recibes. */
 
     public boolean consoleOpen;
+    /** Hay un enemigo al alcance de la katana que se puede ejecutar. */
+    public boolean executeReady;
+    private Enemy execTarget;
     /** Rueda de armas abierta (se mantiene TAB): el tiempo corre muy lento mientras se elige. */
     public boolean wheelOpen;
     public int wheelSel;
@@ -192,6 +195,7 @@ public class World {
             case Combo.GHOST -> { p.ghost = !p.ghost; reply = "fantasma " + (p.ghost ? "activado" : "desactivado"); }
             case Combo.ARSENAL -> {
                 java.util.Arrays.fill(p.has, true);
+                for (Weapon aw : Weapon.values()) p.fillMag(aw);
                 System.arraycopy(Player.MAX_AMMO, 0, p.ammo, 0, p.ammo.length);
                 p.armor = 200;
                 reply = "armas y municion al maximo";
@@ -500,7 +504,7 @@ public class World {
                     return;
                 }
                 switch (k) {
-                    case F, ENTER -> use();
+                    case F, ENTER -> { if (!tryExecute()) use(); }
                     case TAB -> openWheel();
                     case N -> showMap = !showMap;
                     case P -> pause();
@@ -509,6 +513,8 @@ public class World {
                     case DIGIT3, NUMPAD3 -> selectWeapon(2);
                     case DIGIT4, NUMPAD4 -> selectWeapon(3);
                     case DIGIT5, NUMPAD5 -> selectWeapon(4);
+                    case DIGIT6, NUMPAD6 -> selectWeapon(5);
+                    case R -> startReload();
                     default -> { }
                 }
             }
@@ -535,7 +541,7 @@ public class World {
         if (!wheelOpen) return;
         wheelOpen = false;
         if (!apply) return;
-        if (player.has[wheelSel]) player.weapon = Weapon.values()[wheelSel];
+        if (player.has[wheelSel]) player.equip(Weapon.values()[wheelSel]);
         else say("No tienes esa arma", 1.5);
     }
 
@@ -561,7 +567,7 @@ public class World {
         for (int step = 0; step < n; step++) {
             i = (i + dir + n) % n;
             if (player.has[i]) {
-                player.weapon = Weapon.values()[i];
+                player.equip(Weapon.values()[i]);
                 return;
             }
         }
@@ -573,17 +579,18 @@ public class World {
             say("No tienes esa arma", 1.5);
             return;
         }
-        player.weapon = Weapon.values()[i];
+        player.equip(Weapon.values()[i]);
     }
 
     private void bestWeapon() {
         Weapon[] order = {Weapon.PLASMA, Weapon.CHAINGUN, Weapon.SHOTGUN, Weapon.ROCKET, Weapon.PISTOL};
         for (Weapon w : order) {
-            if (player.has[w.ordinal()] && player.ammoFor(w) > 0) {
-                player.weapon = w;
+            if (player.has[w.ordinal()] && player.rounds(w) > 0) {
+                player.equip(w);
                 return;
             }
         }
+        player.equip(Weapon.KATANA);
     }
 
     // ---------------------------------------------------------------- actualizacion
@@ -611,6 +618,15 @@ public class World {
         if (state != GameState.PLAYING || paused || consoleOpen) return;
         time += dt;
         if (p.invuln > 0) p.invuln -= dt;
+        if (p.slash > 0) p.slash = Math.max(0, p.slash - dt * 3.2);
+        if (p.execT > 0) {
+            mouseTurn = 0;
+            mouseFire = false;
+            keys = java.util.Set.of();
+            updateExecution(dt);
+        }
+        updateReload(dt);
+        executeReady = p.execT <= 0 && p.weapon == Weapon.KATANA && findExecutionTarget() != null;
 
         p.angle += mouseTurn;
         boolean run = keys.contains(KeyCode.SHIFT);
@@ -633,7 +649,7 @@ public class World {
         p.bobAmp += ((len > 0 ? 1 : 0) - p.bobAmp) * Math.min(1, dt * 8);
         if (len > 0) p.bobPhase += dt * (run ? 12 : 9);
 
-        if ((mouseFire || keys.contains(KeyCode.SPACE) || keys.contains(KeyCode.CONTROL)) && p.fireCooldown <= 0) {
+        if ((mouseFire || keys.contains(KeyCode.SPACE) || keys.contains(KeyCode.CONTROL)) && p.fireCooldown <= 0 && p.execT <= 0) {
             tryFire();
         }
 
@@ -695,46 +711,38 @@ public class World {
             }
             case Pickup.CLIP -> {
                 if (p.ammo[0] >= Player.MAX_AMMO[0]) return false;
-                p.addAmmo(Weapon.BULLETS, 10);
-                msg = "Cargador: +10 balas";
+                msg = giveMags(Weapon.BULLETS);
             }
             case Pickup.SHELLS -> {
                 if (p.ammo[1] >= Player.MAX_AMMO[1]) return false;
-                p.addAmmo(Weapon.SHELLS, 8);
-                msg = "Cartuchos: +8";
+                msg = giveMags(Weapon.SHELLS);
             }
             case Pickup.SHOTGUN -> {
-                p.has[1] = true;
-                p.addAmmo(Weapon.SHELLS, 8);
-                p.weapon = Weapon.SHOTGUN;
+                gainWeapon(Weapon.SHOTGUN);
+                p.equip(Weapon.SHOTGUN);
                 msg = "Tienes la ESCOPETA (tecla 2)";
             }
             case Pickup.CHAINGUN -> {
-                p.has[2] = true;
-                p.addAmmo(Weapon.BULLETS, 20);
-                p.weapon = Weapon.CHAINGUN;
+                gainWeapon(Weapon.CHAINGUN);
+                p.equip(Weapon.CHAINGUN);
                 msg = "Tienes la AMETRALLADORA (tecla 3)";
             }
             case Pickup.ROCKETS -> {
                 if (p.ammo[2] >= Player.MAX_AMMO[2]) return false;
-                p.addAmmo(Weapon.ROCKETS, 5);
-                msg = "Cohetes: +5";
+                msg = giveMags(Weapon.ROCKETS);
             }
             case Pickup.CELLS -> {
                 if (p.ammo[3] >= Player.MAX_AMMO[3]) return false;
-                p.addAmmo(Weapon.CELLS, 40);
-                msg = "Celdas de energia: +40";
+                msg = giveMags(Weapon.CELLS);
             }
             case Pickup.LAUNCHER -> {
-                p.has[3] = true;
-                p.addAmmo(Weapon.ROCKETS, 4);
-                p.weapon = Weapon.ROCKET;
+                gainWeapon(Weapon.ROCKET);
+                p.equip(Weapon.ROCKET);
                 msg = "Tienes el LANZACOHETES (tecla 4)";
             }
             case Pickup.PLASMA -> {
-                p.has[4] = true;
-                p.addAmmo(Weapon.CELLS, 50);
-                p.weapon = Weapon.PLASMA;
+                gainWeapon(Weapon.PLASMA);
+                p.equip(Weapon.PLASMA);
                 msg = "Tienes el RIFLE DE PLASMA (tecla 5)";
             }
             case Pickup.MEGA -> {
@@ -766,6 +774,23 @@ public class World {
         sound.play(pk.type == Pickup.RED_KEY || pk.type == Pickup.BLUE_KEY ? SoundFx.KEY : SoundFx.PICKUP);
         say(msg, 2.0);
         return true;
+    }
+
+    /** Una caja de municion da cargadores del arma que mas usa ese tipo de bala. */
+    private String giveMags(int type) {
+        Weapon w = player.ammoWeapon(type);
+        int n = w.pickupMags;
+        player.addAmmo(type, n * w.mag);
+        return "Cargadores de " + w.label.toLowerCase() + ": +" + n;
+    }
+
+    private void gainWeapon(Weapon w) {
+        Player p = player;
+        if (!p.has[w.ordinal()]) {
+            p.has[w.ordinal()] = true;
+            p.fillMag(w);
+        }
+        p.addAmmo(w.ammoType, w.pickupMags * w.mag);
     }
 
     private void doorSound(boolean started, int cx, int cy) {
@@ -816,21 +841,203 @@ public class World {
 
     private void tryFire() {
         Player p = player;
-        if (p.ammoFor(p.weapon) <= 0) {
+        Weapon w = p.weapon;
+        if (w.isMelee()) {
+            melee();
+            return;
+        }
+        if (p.reloadT > 0) {
+            // la escopeta se puede interrumpir si ya tiene alguna cartucho cargado
+            if (p.reloadByRound && p.loaded[w.ordinal()] > 0) p.cancelReload();
+            else return;
+        }
+        if (p.loaded[w.ordinal()] <= 0) {
+            if (p.ammoFor(w) > 0) {
+                startReload();
+                return;
+            }
             bestWeapon();
-            if (p.ammoFor(p.weapon) <= 0) {
+            if (p.weapon.isMelee() || p.loaded[p.weapon.ordinal()] <= 0) {
                 p.fireCooldown = 0.3;
-                say("Sin municion", 1.0);
+                say(p.weapon.isMelee() ? "Sin municion: usa la katana" : "Sin municion", 1.2);
                 sound.play(SoundFx.DENIED);
                 return;
             }
+            w = p.weapon;
         }
-        shoot(p.weapon);
+        shoot(w);
+    }
+
+    // ---------------------------------------------------------------- recarga
+
+    /** Empieza a recargar el arma actual (tecla R, o sola al quedarse sin balas). */
+    public void startReload() {
+        Player p = player;
+        Weapon w = p.weapon;
+        if (state != GameState.PLAYING || paused || w.mag <= 0 || p.reloadT > 0 || p.execT > 0) return;
+        int need = w.mag - p.loaded[w.ordinal()];
+        if (need <= 0 || p.ammoFor(w) <= 0) return;
+        int take = Math.min(need, p.ammoFor(w));
+        p.reloadByRound = w == Weapon.SHOTGUN;
+        p.reloadTotal = p.reloadT = p.reloadByRound ? take * SHELL_TIME + 0.35 : w.reload;
+        p.reloadStage = p.reloadInserted = 0;
+        if (!p.reloadByRound) sound.play(w == Weapon.ROCKET ? SoundFx.RACK : SoundFx.MAG_OUT);
+    }
+
+    private static final double SHELL_TIME = 0.45;
+
+    private void updateReload(double dt) {
+        Player p = player;
+        Weapon w = p.weapon;
+        if (p.reloadT > 0) {
+            p.reloadT -= dt;
+            double elapsed = p.reloadTotal - Math.max(0, p.reloadT);
+            int idx = w.ordinal();
+            if (p.reloadByRound) {
+                int should = (int) (elapsed / SHELL_TIME);
+                while (p.reloadInserted < should && p.loaded[idx] < w.mag && p.ammo[w.ammoType] > 0) {
+                    p.loaded[idx]++;
+                    p.ammo[w.ammoType]--;
+                    p.reloadInserted++;
+                    sound.play(SoundFx.SHELL);
+                }
+                if (p.reloadT <= 0) {
+                    p.reloadT = 0;
+                    sound.play(SoundFx.PUMP);
+                }
+            } else {
+                if (p.reloadStage == 0 && elapsed > p.reloadTotal * 0.55) {
+                    p.reloadStage = 1;
+                    sound.play(SoundFx.MAG_IN);
+                }
+                if (p.reloadT <= 0) {
+                    p.reloadT = 0;
+                    int take = Math.min(w.mag - p.loaded[idx], p.ammo[w.ammoType]);
+                    p.loaded[idx] += take;
+                    p.ammo[w.ammoType] -= take;
+                    sound.play(SoundFx.RACK);
+                }
+            }
+        } else if (w.mag > 0 && p.loaded[w.ordinal()] <= 0 && p.ammoFor(w) > 0 && p.fireCooldown <= 0 && p.execT <= 0) {
+            startReload();
+        }
+    }
+
+    // ---------------------------------------------------------------- katana
+
+    /** Enemigo al alcance, de frente. */
+    private Enemy meleeTarget(double range, double cone) {
+        Player p = player;
+        Enemy best = null;
+        double bestD = Double.MAX_VALUE;
+        for (Enemy e : enemies) {
+            if (!e.alive) continue;
+            double dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy);
+            if (d > range + e.type.radius || d >= bestD) continue;
+            double diff = Math.atan2(dy, dx) - p.angle;
+            while (diff > Math.PI) diff -= 2 * Math.PI;
+            while (diff < -Math.PI) diff += 2 * Math.PI;
+            if (d > 0.5 && Math.abs(diff) > cone) continue;
+            if (!level.lineOfSight(p.x, p.y, e.x, e.y)) continue;
+            best = e;
+            bestD = d;
+        }
+        return best;
+    }
+
+    /** Un enemigo se puede ejecutar si esta debil o no te ha visto (no los jefes). */
+    private Enemy findExecutionTarget() {
+        Enemy e = meleeTarget(1.9, 0.55);
+        if (e == null || e.type.isBoss()) return null;
+        return (e.hp <= e.type.hp * 0.35 || !e.awake) ? e : null;
+    }
+
+    private boolean tryExecute() {
+        Player p = player;
+        if (p.weapon != Weapon.KATANA || p.execT > 0 || p.fireCooldown > 0.2) return false;
+        Enemy t = findExecutionTarget();
+        if (t == null) return false;
+        startExecution(t);
+        return true;
+    }
+
+    private void startExecution(Enemy t) {
+        Player p = player;
+        execTarget = t;
+        p.execTotal = p.execT = 1.0;
+        p.fireCooldown = 1.1;
+        p.slash = 0;
+        p.cancelReload();
+        sound.play(SoundFx.EXECUTE);
+    }
+
+    private void updateExecution(double dt) {
+        Player p = player;
+        double prev = p.execT;
+        p.execT -= dt;
+        Enemy t = execTarget;
+        if (t != null) {
+            double dx = t.x - p.x, dy = t.y - p.y, d = Math.hypot(dx, dy);
+            double diff = Math.atan2(dy, dx) - p.angle;
+            while (diff > Math.PI) diff -= 2 * Math.PI;
+            while (diff < -Math.PI) diff += 2 * Math.PI;
+            p.angle += diff * Math.min(1, dt * 14);
+            if (d > 1.0) p.tryMove(level, dx / d * dt * 5, dy / d * dt * 5);
+            double mid = p.execTotal * 0.5;
+            if (prev > mid && p.execT <= mid && t.alive) {
+                for (int i = 0; i < 5; i++) {
+                    effects.add(new Effect(t.x + (rnd.nextDouble() - 0.5) * 0.7, t.y + (rnd.nextDouble() - 0.5) * 0.7, 1));
+                }
+                if (t.hit(9999)) onKill(t);
+                if (p.health < 100) p.health = Math.min(100, p.health + 15);
+                p.pickFlash = 0.2;
+                say("EJECUCION: +15 de salud", 1.8);
+            }
+        }
+        if (p.execT <= 0) {
+            p.execT = 0;
+            execTarget = null;
+        }
+    }
+
+    private void melee() {
+        Player p = player;
+        if (tryExecute()) return;
+        Weapon w = p.weapon;
+        p.fireCooldown = w.cooldown;
+        p.slash = 1;
+        p.slashSide = 1 - p.slashSide;
+        for (Enemy e : enemies) {
+            if (!e.alive || e.awake) continue;
+            if (Math.hypot(e.x - p.x, e.y - p.y) < 2.5) e.awake = true;
+        }
+        Enemy t = meleeTarget(1.45, 0.65);
+        Barrel hitBarrel = null;
+        double bd = 1.3;
+        for (Barrel b : barrels) {
+            if (!b.alive) continue;
+            double d = Math.hypot(b.x - p.x, b.y - p.y);
+            double diff = Math.atan2(b.y - p.y, b.x - p.x) - p.angle;
+            while (diff > Math.PI) diff -= 2 * Math.PI;
+            while (diff < -Math.PI) diff += 2 * Math.PI;
+            if (d < bd && Math.abs(diff) < 0.6) { hitBarrel = b; bd = d; }
+        }
+        int dmg = w.dmgMin + rnd.nextInt(w.dmgMax - w.dmgMin + 1);
+        if (t != null && (hitBarrel == null || Math.hypot(t.x - p.x, t.y - p.y) < bd)) {
+            sound.play(SoundFx.SLASH_HIT);
+            for (int i = 0; i < 2; i++) effects.add(new Effect(t.x - Math.cos(p.angle) * 0.3, t.y - Math.sin(p.angle) * 0.3, 1));
+            if (t.hit(dmg)) onKill(t);
+        } else if (hitBarrel != null) {
+            sound.play(SoundFx.SLASH_HIT);
+            damageBarrel(hitBarrel, dmg);
+        } else {
+            sound.play(SoundFx.SLASH);
+        }
     }
 
     private void shoot(Weapon w) {
         Player p = player;
-        p.ammo[w.ammoType]--;
+        p.loaded[w.ordinal()]--;
         p.fireCooldown = w.cooldown;
         p.recoil = w == Weapon.CHAINGUN ? 0.35 : 1.0;
         p.muzzle = 0.1;
@@ -840,6 +1047,7 @@ public class World {
             case CHAINGUN -> SoundFx.CHAINGUN;
             case ROCKET -> SoundFx.ROCKET;
             case PLASMA -> SoundFx.PLASMA;
+            case KATANA -> SoundFx.SLASH;
         });
 
         for (Enemy e : enemies) {

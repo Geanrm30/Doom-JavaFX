@@ -31,7 +31,8 @@ public final class Progress {
     /** Inventario con el que se empieza el nivel desbloqueado mas alto. */
     public boolean hasInventory;
     public int health = 100, armor = 0, bullets = 50, shells = 0, rockets = 0, cells = 0, weapon = 0;
-    public final boolean[] has = {true, false, false, false, false};
+    public final boolean[] has = {true, false, false, false, false, true};
+    public final int[] loaded = new int[Weapon.values().length];
 
     private final Path file;
 
@@ -77,8 +78,11 @@ public final class Progress {
         p.has[4] = bool(props, "inv.plasma", false);
         p.rockets = num(props, "inv.rockets", 0, 0, Player.MAX_AMMO[2]);
         p.cells = num(props, "inv.cells", 0, 0, Player.MAX_AMMO[3]);
-        p.weapon = num(props, "inv.weapon", 0, 0, 4);
+        p.weapon = num(props, "inv.weapon", 0, 0, Weapon.values().length - 1);
         if (!p.has[p.weapon]) p.weapon = 0;
+        for (Weapon w : Weapon.values()) {
+            if (w.mag > 0) p.loaded[w.ordinal()] = num(props, "inv.loaded." + w.ordinal(), p.has[w.ordinal()] ? w.mag : 0, 0, w.mag);
+        }
         return p;
     }
 
@@ -104,6 +108,7 @@ public final class Progress {
         props.setProperty("inv.chaingun", Boolean.toString(has[2]));
         props.setProperty("inv.rocket", Boolean.toString(has[3]));
         props.setProperty("inv.plasma", Boolean.toString(has[4]));
+        for (Weapon w : Weapon.values()) if (w.mag > 0) props.setProperty("inv.loaded." + w.ordinal(), Integer.toString(loaded[w.ordinal()]));
         props.setProperty("inv.rockets", Integer.toString(rockets));
         props.setProperty("inv.cells", Integer.toString(cells));
         props.setProperty("inv.weapon", Integer.toString(weapon));
@@ -135,6 +140,8 @@ public final class Progress {
         rockets = cells = 0;
         weapon = 0;
         has[1] = has[2] = has[3] = has[4] = false;
+        java.util.Arrays.fill(loaded, 0);
+        loaded[0] = Weapon.PISTOL.mag;
     }
 
     public void storeInventory(Player p) {
@@ -146,6 +153,7 @@ public final class Progress {
         rockets = p.ammo[2];
         cells = p.ammo[3];
         System.arraycopy(p.has, 1, has, 1, 4);
+        System.arraycopy(p.loaded, 0, loaded, 0, loaded.length);
         weapon = p.weapon.ordinal();
     }
 
@@ -159,6 +167,7 @@ public final class Progress {
         p.ammo[2] = rockets;
         p.ammo[3] = cells;
         System.arraycopy(has, 1, p.has, 1, 4);
+        System.arraycopy(loaded, 0, p.loaded, 0, loaded.length);
         p.weapon = Weapon.values()[weapon];
     }
 

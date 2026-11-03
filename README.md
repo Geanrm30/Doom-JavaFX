@@ -30,7 +30,8 @@ En Windows: `mvnw.cmd javafx:run`. Desde IntelliJ, ejecuta la clase `doom.Launch
 | SHIFT | Correr |
 | ESPACIO o CTRL | Disparar |
 | F o ENTER | Usar (abrir puertas, activar la salida) |
-| 1 2 3 4 5 | Cambiar de arma |
+| 1 2 3 4 5 6 | Cambiar de arma (6 = katana) |
+| R | Recargar |
 | TAB (mantener) | Rueda de armas: mueve el raton hacia el arma y suelta TAB (o haz clic). El tiempo se ralentiza mientras eliges |
 | N | Mostrar u ocultar el minimapa |
 | M | Silenciar o activar el sonido |
@@ -104,8 +105,10 @@ piden la llave de su color, que siempre esta en una zona a la que puedes llegar 
 
 ## Armas y objetos
 
-- Pistola (balas), escopeta (cartuchos, 7 perdigones) y ametralladora (balas, cadencia alta).
-- Lanzacohetes (cohetes, dano en area: tambien te hiere si explota cerca) y rifle de plasma (celdas, cadencia muy alta).
+- Pistola (7 balas por cargador), escopeta (4 cartuchos, 7 perdigones), ametralladora (30), lanzacohetes (1 cohete, dano en area: tambien te hiere si explota cerca) y rifle de plasma (25 celdas).
+- Cada arma tiene su cargador y su tiempo de recarga, con animacion propia: la pistola, la ametralladora y el rifle cambian de cargador, la escopeta mete los cartuchos de uno en uno (puedes interrumpirla disparando) y el lanzacohetes carga un cohete nuevo. Recarga con `R`; al vaciarse el cargador recarga sola.
+- Las cajas de municion dan cargadores completos del arma que uses con esa municion.
+- Katana (tecla 6): arma cuerpo a cuerpo sin municion. Con un enemigo debil o que aun no te ha visto, aparece `EJECUTAR`: clic o `F` y la katana lo remata con una ejecucion que ademas te cura 15 de salud (no funciona con jefes). Si te quedas sin balas pasas a la katana.
 - Botiquin, estimulante, armadura, cargadores, cartuchos, cohetes y celdas de energia.
 - Megasalud: salud hasta 200 y armadura al maximo.
 - Esfera de invulnerabilidad: 12 segundos sin recibir dano.

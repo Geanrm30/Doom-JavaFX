@@ -45,6 +45,14 @@ public class HudRenderer {
 
         if (st == GameState.PLAYING) drawWeapon(gc, player);
         drawCrosshair(gc);
+        if (st == GameState.PLAYING && player.execT > 0) drawExecution(gc, player);
+        if (st == GameState.PLAYING && world.executeReady && player.execT <= 0 && !world.paused) {
+            gc.setTextAlign(TextAlignment.CENTER);
+            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
+            gc.setFill(Color.rgb(230, 50, 40));
+            gc.fillText("EJECUTAR  [CLIC / F]", CW / 2, CH / 2 - 70);
+            gc.setTextAlign(TextAlignment.LEFT);
+        }
         if (world.showMap) drawMiniMap(gc, world);
         drawStatusBar(gc, world);
         drawMessage(gc, world);
@@ -68,10 +76,31 @@ public class HudRenderer {
     // ------------------------------------------------------------------ armas
 
     private void drawWeapon(GraphicsContext gc, Player p) {
+        Weapon w = p.weapon;
+        if (w == Weapon.KATANA) {
+            drawKatana(gc, p);
+            return;
+        }
         double cx = CW / 2 + Math.sin(p.bobPhase) * p.bobAmp * 12;
         double off = p.recoil * 28 + Math.abs(Math.cos(p.bobPhase)) * p.bobAmp * 7;
         double by = CH - 60;
-        Weapon w = p.weapon;
+        double rp = p.reloadT > 0 ? 1 - p.reloadT / p.reloadTotal : -1;
+        double elapsed = rp >= 0 ? rp * p.reloadTotal : 0;
+        if (rp >= 0) {
+            double tilt;
+            if (p.reloadByRound) {
+                off += 50 + 16 * Math.sin(elapsed / 0.45 * 2 * Math.PI);
+                tilt = 12;
+            } else {
+                double d = Math.sin(Math.PI * rp);
+                off += d * 125;
+                tilt = d * 10;
+            }
+            gc.save();
+            gc.translate(cx, CH);
+            gc.rotate(tilt);
+            gc.translate(-cx, -CH);
+        }
 
         if (p.muzzle > 0) {
             gc.setFill(Color.rgb(255, 200, 60, 0.9));
@@ -146,6 +175,142 @@ public class HudRenderer {
             new double[]{cx - 50, cx + 50, cx + 34, cx - 34},
             new double[]{by + 60 + off, by + 60 + off, by - 40 + off, by - 40 + off},
             4);
+        if (rp >= 0) {
+            drawReloadProps(gc, p, w, rp, elapsed, cx, by, off);
+            gc.restore();
+        }
+    }
+
+    /** Cargador, cartucho o cohete que entra y sale durante la recarga. */
+    private void drawReloadProps(GraphicsContext gc, Player p, Weapon w, double rp, double elapsed, double cx, double by, double off) {
+        double slotY = by - 50 + off;
+        switch (w) {
+            case PISTOL, CHAINGUN, PLASMA -> {
+                double mw = w == Weapon.CHAINGUN ? 34 : w == Weapon.PLASMA ? 20 : 14;
+                double mh = w == Weapon.CHAINGUN ? 40 : 36;
+                double mx = cx + (w == Weapon.CHAINGUN ? 22 : 0) - mw / 2;
+                Color body = w == Weapon.PLASMA ? Color.rgb(90, 210, 255) : w == Weapon.CHAINGUN ? Color.rgb(165, 150, 60) : Color.rgb(70, 70, 78);
+                double y;
+                if (rp < 0.35) y = slotY + rp / 0.35 * 230;
+                else if (rp < 0.55) return;
+                else y = slotY + (1 - Math.min(1, (rp - 0.55) / 0.3)) * 230;
+                gc.setFill(Color.rgb(15, 15, 18));
+                gc.fillRect(mx - 2, y - 2, mw + 4, mh + 4);
+                gc.setFill(body);
+                gc.fillRect(mx, y, mw, mh);
+                gc.setFill(Color.rgb(255, 255, 255, 0.25));
+                gc.fillRect(mx, y, mw * 0.3, mh);
+            }
+            case ROCKET -> {
+                if (rp < 0.35 || rp > 0.85) return;
+                double k = Math.min(1, (rp - 0.35) / 0.4);
+                double y = slotY + (1 - k) * 240;
+                gc.setFill(Color.rgb(150, 60, 50));
+                gc.fillRect(cx - 12, y, 24, 70);
+                gc.setFill(Color.rgb(205, 205, 210));
+                gc.fillPolygon(new double[]{cx - 12, cx + 12, cx}, new double[]{y, y, y - 26}, 3);
+                gc.setFill(Color.rgb(60, 60, 64));
+                gc.fillRect(cx - 18, y + 60, 36, 10);
+            }
+            case SHOTGUN -> {
+                double k = (elapsed / 0.45) % 1.0;
+                double y = by + 140 - k * 190;
+                gc.setFill(Color.rgb(190, 40, 35));
+                gc.fillRect(cx - 7, y, 14, 24);
+                gc.setFill(Color.rgb(205, 170, 80));
+                gc.fillRect(cx - 7, y + 20, 14, 8);
+            }
+            default -> { }
+        }
+    }
+
+    // ------------------------------------------------------------------ katana
+
+    private void drawKatana(GraphicsContext gc, Player p) {
+        double cx = CW / 2 + Math.sin(p.bobPhase) * p.bobAmp * 10;
+        double bob = Math.abs(Math.cos(p.bobPhase)) * p.bobAmp * 6;
+        double t = -1, side = p.slashSide > 0.5 ? -1 : 1;
+        if (p.execT > 0) {
+            double tt = 1 - p.execT / p.execTotal;
+            if (tt < 0.5) { t = Math.max(0, Math.min(1, (tt - 0.08) / 0.32)); side = 1; }
+            else { t = Math.max(0, Math.min(1, (tt - 0.5) / 0.32)); side = -1; }
+            if (tt < 0.08) t = -1;
+        } else if (p.slash > 0) {
+            t = 1 - p.slash;
+        }
+        double pivotX = cx + side * 130, pivotY = CH - 20 + bob;
+        double angDeg;
+        if (t >= 0) {
+            double e = 1 - Math.pow(1 - t, 3);
+            angDeg = side * (38 + (-88 - 38) * e);
+        } else {
+            angDeg = side * -10;
+        }
+        double L = 330;
+        if (t >= 0 && t < 0.95) {
+            // estela del tajo
+            double a0 = Math.toRadians(side * 38), a1 = Math.toRadians(angDeg);
+            int n = 14;
+            double[] xs = new double[n + 1], ys = new double[n + 1];
+            xs[0] = pivotX; ys[0] = pivotY;
+            for (int i = 0; i < n; i++) {
+                double a = a0 + (a1 - a0) * i / (n - 1);
+                xs[i + 1] = pivotX + Math.sin(a) * L;
+                ys[i + 1] = pivotY - Math.cos(a) * L;
+            }
+            gc.setFill(Color.rgb(235, 240, 255, 0.28 * (1 - t)));
+            gc.fillPolygon(xs, ys, n + 1);
+        }
+        gc.save();
+        gc.translate(pivotX, pivotY);
+        gc.rotate(angDeg);
+        // empunadura
+        gc.setFill(Color.rgb(28, 24, 30));
+        gc.fillRect(-11, -90, 22, 120);
+        gc.setFill(Color.rgb(150, 30, 35));
+        for (int i = 0; i < 5; i++) gc.fillPolygon(new double[]{-9, 9, 0}, new double[]{-82 + i * 20, -82 + i * 20, -72 + i * 20}, 3);
+        // guarda
+        gc.setFill(Color.rgb(200, 165, 60));
+        gc.fillOval(-26, -98, 52, 14);
+        // hoja
+        gc.setFill(Color.rgb(228, 233, 242));
+        gc.fillPolygon(new double[]{-10, 0, 0, -10}, new double[]{-96, -96, -L, -L + 46}, 4);
+        gc.setFill(Color.rgb(150, 156, 172));
+        gc.fillPolygon(new double[]{0, 10, 0}, new double[]{-96, -96, -L}, 3);
+        gc.setStroke(Color.rgb(255, 255, 255, 0.85));
+        gc.setLineWidth(1.2);
+        gc.strokeLine(-10, -96, -10, -L + 46);
+        gc.restore();
+    }
+
+    /** Pantalla de ejecucion: barras de cine, dos cortes cruzados y destello rojo. */
+    private void drawExecution(GraphicsContext gc, Player p) {
+        double tt = 1 - p.execT / p.execTotal;
+        double bars = 46 * Math.sin(Math.PI * Math.min(1, tt));
+        gc.setFill(Color.BLACK);
+        gc.fillRect(0, 0, CW, bars);
+        gc.fillRect(0, CH - bars, CW, bars);
+        double k1 = Math.max(0, Math.min(1, (tt - 0.1) / 0.25));
+        double k2 = Math.max(0, Math.min(1, (tt - 0.5) / 0.25));
+        gc.setLineCap(javafx.scene.shape.StrokeLineCap.ROUND);
+        for (int s = 0; s < 2; s++) {
+            double k = s == 0 ? k1 : k2;
+            if (k <= 0) continue;
+            double fade = s == 0 ? 1 - Math.max(0, (tt - 0.45) / 0.4) : 1 - Math.max(0, (tt - 0.85) / 0.15);
+            double x0 = s == 0 ? CW * 0.12 : CW * 0.88, y0 = CH * 0.12, x1 = s == 0 ? CW * 0.88 : CW * 0.12, y1 = CH * 0.88;
+            double ex = x0 + (x1 - x0) * k, ey = y0 + (y1 - y0) * k;
+            gc.setStroke(Color.rgb(220, 20, 20, 0.55 * fade));
+            gc.setLineWidth(22);
+            gc.strokeLine(x0, y0, ex, ey);
+            gc.setStroke(Color.rgb(255, 255, 255, 0.95 * fade));
+            gc.setLineWidth(6);
+            gc.strokeLine(x0, y0, ex, ey);
+        }
+        if (tt > 0.5) {
+            double a = Math.max(0, 0.45 - (tt - 0.5) * 0.9);
+            gc.setFill(Color.rgb(190, 0, 0, a));
+            gc.fillRect(0, 0, CW, CH);
+        }
     }
 
     private void drawCrosshair(GraphicsContext gc) {
@@ -209,7 +374,17 @@ public class HudRenderer {
 
         gc.setFill(Color.rgb(230, 200, 90));
         gc.fillText(p.weapon.label, 250, CH - 30);
+        if (!p.weapon.isMelee()) {
+            int ld = p.loaded[p.weapon.ordinal()];
+            boolean rel = p.reloadT > 0;
+            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
+            gc.setFill(rel ? Color.rgb(255, 150, 60) : ld == 0 ? Color.rgb(230, 60, 50) : Color.rgb(255, 255, 255));
+            gc.setTextAlign(TextAlignment.RIGHT);
+            gc.fillText(rel ? "RECARGANDO" : ld + "/" + p.weapon.mag, 548, CH - 30);
+            gc.setTextAlign(TextAlignment.LEFT);
+        }
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        gc.setFill(Color.rgb(230, 200, 90));
         gc.fillText("BAL " + p.ammo[0] + " CAR " + p.ammo[1] + " COH " + p.ammo[2] + " CEL " + p.ammo[3], 250, CH - 8);
 
         // llaves
@@ -463,7 +638,7 @@ public class HudRenderer {
             gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 13));
             gc.fillText(ws[i].label, lx, ly - 2);
             gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 13));
-            gc.fillText(own ? Integer.toString(p.ammoFor(ws[i])) : "---", lx, ly + 15);
+            gc.fillText(!own ? "---" : ws[i].isMelee() ? "CUERPO" : p.loaded[i] + "/" + p.ammoFor(ws[i]), lx, ly + 15);
             gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 12));
             gc.setFill(Color.rgb(200, 200, 200));
             gc.fillText(Integer.toString(i + 1), cx + Math.cos(mid) * (ro + 14), cy + Math.sin(mid) * (ro + 14) + 4);
