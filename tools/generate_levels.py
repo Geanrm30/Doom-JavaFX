@@ -15,6 +15,7 @@ Leyenda del mapa:
   H megasalud, v invulnerabilidad, o barril explosivo
   h botiquin, s estimulante, a armadura, k balas, e cartuchos
   g escopeta, m ametralladora, r llave roja, u llave azul
+  S puerta secreta (parece una pared; se abre con el boton de usar)
 """
 import os
 import random
@@ -272,6 +273,27 @@ def build(cfg, rng):
         for rc in rooms:
             if rng.random() < 0.35:
                 put(rc, "n")
+
+    # cuartos secretos al este del mapa: puerta secreta 'S' (imita la pared) y 3 premios
+    if idx >= 2:
+        want = 2 if idx >= 5 else 1
+        extra = 4
+        for y in range(H):
+            wc = rooms[(min(y // S, rows - 1), cols - 1)]
+            grid[y].extend([wc] * extra)
+        east = [r for r in range(rows) if grid[r * S + 4][W - 2] == "." and grid[r * S + 4][W - 1] in "123456"]
+        rng.shuffle(east)
+        for r in east[:want]:
+            y0 = r * S + 4
+            grid[y0][W - 1] = "S"
+            for dy in (-1, 0, 1):
+                for dx in range(3):
+                    grid[y0 + dy][W + dx] = "."
+            loot = ["H" if idx >= 3 else "h", "a", "e" if have_shotgun else "k"]
+            for dx, ch in enumerate(loot):
+                grid[y0][W + dx] = ch
+                things.append((ch, W + dx, y0))
+        W += extra
 
     return dict(grid=grid, angle=angle, exit_in=exit_in, things=things, W=W, H=H, start=(sx, sy))
 

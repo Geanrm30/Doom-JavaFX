@@ -27,6 +27,9 @@ public final class Level {
     private final float[][] doorOpen;
     private final byte[][] doorPhase;
     private final float[][] doorTimer;
+    /** Textura que imita la puerta secreta (copia la pared de al lado). */
+    private final char[][] secretLook;
+    public int secretCount;
     /** Distancia en celdas hasta el jugador (BFS); los enemigos la siguen para rodear paredes. */
     private int[][] flow;
     private int flowCx = Integer.MIN_VALUE, flowCy;
@@ -45,6 +48,7 @@ public final class Level {
         this.doorOpen = new float[height][width];
         this.doorPhase = new byte[height][width];
         this.doorTimer = new float[height][width];
+        this.secretLook = new char[height][width];
     }
 
     /** Cuenta cuantos archivos levelN.txt existen consecutivamente desde 1. */
@@ -116,6 +120,7 @@ public final class Level {
                     cells[y][x] = c;
                 }
             }
+            lv.prepareSecrets();
             return lv;
         } catch (IOException e) {
             throw new IllegalStateException("No se pudo leer el nivel " + index, e);
@@ -132,8 +137,30 @@ public final class Level {
         return cells[cy][cx];
     }
 
+    private void prepareSecrets() {
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (cells[y][x] != 'S') continue;
+                secretCount++;
+                char look = '1';
+                int[][] nb = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+                for (int[] d : nb) {
+                    char n = cell(x + d[0], y + d[1]);
+                    if (n >= '1' && n <= '6') { look = n; break; }
+                }
+                secretLook[y][x] = look;
+            }
+        }
+    }
+
+    /** Caracter con el que se dibuja la celda (las puertas secretas parecen pared). */
+    public char look(int cx, int cy) {
+        char c = cell(cx, cy);
+        return c == 'S' ? secretLook[cy][cx] : c;
+    }
+
     public static boolean isDoor(char c) {
-        return c == 'D' || c == 'R' || c == 'U';
+        return c == 'D' || c == 'R' || c == 'U' || c == 'S';
     }
 
     /** Apertura de la puerta en la celda (0 si no es puerta). */
@@ -237,6 +264,7 @@ public final class Level {
                         doorTimer[y][x] = (float) DOOR_HOLD;
                     }
                 } else if (ph == 2) {
+                    if (cells[y][x] == 'S') continue; // las puertas secretas se quedan abiertas
                     doorTimer[y][x] -= (float) dt;
                     if (doorTimer[y][x] <= 0 && !l.blocked(x, y)) {
                         doorPhase[y][x] = 3;

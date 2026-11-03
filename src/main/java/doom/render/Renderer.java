@@ -109,7 +109,7 @@ public class Renderer {
                             hasDoor = true;
                             dOpen = o;
                             dSide = side;
-                            dCh = cc0;
+                            dCh = level.look(mapX, mapY);
                             dPerp = Math.max(0.05, side == 0 ? sideX - deltaX : sideY - deltaY);
                             double wx = side == 0 ? player.y + dPerp * rayY : player.x + dPerp * rayX;
                             dWallX = wx - Math.floor(wx);
@@ -128,7 +128,7 @@ public class Renderer {
             int start = Math.max(0, -lineH / 2 + H / 2);
             int end   = Math.min(H - 1, lineH / 2 + H / 2);
 
-            int[] tex = textures.data[TextureManager.indexFor(level.cell(mapX, mapY))];
+            int[] tex = textures.data[TextureManager.indexFor(level.look(mapX, mapY))];
             double wallX = side == 0 ? player.y + perp * rayY : player.x + perp * rayX;
             wallX -= Math.floor(wallX);
             int texX = (int) (wallX * TEX);

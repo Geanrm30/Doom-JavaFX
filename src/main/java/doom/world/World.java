@@ -31,7 +31,7 @@ public class World {
     public GameState state = GameState.TITLE;
     public final int levelCount = Math.min(Level.count(), Progress.MAX_LEVELS);
     public int levelIndex = 1;
-    public int kills, totalEnemies, items, totalItems;
+    public int kills, totalEnemies, items, totalItems, secretsFound;
     public double time;
     public String message = "";
     public double messageTimer;
@@ -123,6 +123,7 @@ public class World {
         }
         kills = 0;
         items = 0;
+        secretsFound = 0;
         time = 0;
         totalEnemies = enemies.size();
         totalItems = (int) pickups.stream()
@@ -702,6 +703,15 @@ public class World {
             if (c == '.') continue;
             switch (c) {
                 case 'D' -> { level.open(cx, cy); sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5); }
+                case 'S' -> {
+                    if (level.openness(cx, cy) == 0) {
+                        secretsFound++;
+                        say("Has encontrado un secreto", 2.5);
+                        sound.play(SoundFx.KEY);
+                    }
+                    level.open(cx, cy);
+                    sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5);
+                }
                 case 'R' -> {
                     if (p.redKey) { level.open(cx, cy); sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5); }
                     else { say("Necesitas la llave ROJA", 2.0); sound.play(SoundFx.DENIED); }

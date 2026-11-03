@@ -292,11 +292,12 @@ public class HudRenderer {
         gc.fillText(world.level.name, CW / 2, 160);
 
         int secs = (int) world.time;
-        String[] lines = {
-            "Enemigos  " + world.kills + " / " + world.totalEnemies,
-            "Objetos   " + Math.min(world.items, world.totalItems) + " / " + world.totalItems,
-            String.format("Tiempo    %d:%02d", secs / 60, secs % 60)
-        };
+        java.util.List<String> list = new java.util.ArrayList<>();
+        list.add("Enemigos  " + world.kills + " / " + world.totalEnemies);
+        list.add("Objetos   " + Math.min(world.items, world.totalItems) + " / " + world.totalItems);
+        if (world.level.secretCount > 0) list.add("Secretos  " + world.secretsFound + " / " + world.level.secretCount);
+        list.add(String.format("Tiempo    %d:%02d", secs / 60, secs % 60));
+        String[] lines = list.toArray(new String[0]);
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 28));
         for (int i = 0; i < lines.length; i++) gc.fillText(lines[i], CW / 2, 250 + i * 46);

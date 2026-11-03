@@ -81,6 +81,10 @@ Las puertas se deslizan hacia arriba, esperan unos segundos y se vuelven a cerra
 en el umbral. Los enemigos buscan el camino hasta ti (rodean paredes y abren puertas normales)
 y los disparos los despiertan aunque no te vean.
 
+Desde el nivel 2 hay cuartos secretos: una puerta secreta con el aspecto de la pared de la sala
+(pruebas a usar las paredes del borde este del mapa) esconde botiquines, armadura y municion.
+La pantalla final cuenta los secretos encontrados.
+
 Para terminar un nivel hay que llegar a la pared verde con la flecha y usarla. Si el
 nivel tiene jefe, la salida no abre hasta que lo derrotes. Las puertas rojas y azules
 piden la llave de su color, que siempre esta en una zona a la que puedes llegar antes.
@@ -135,6 +139,7 @@ B baron         J baron jefe Y ciberdemonio
 h botiquin      s estimulante  a armadura      k balas           e cartuchos
 g escopeta      m ametralladora  r llave roja  u llave azul
 l lanzacohetes  q rifle de plasma    w cohetes     n celdas
+S puerta secreta (parece pared y se abre con usar)
 H megasalud     v invulnerabilidad             o barril explosivo
 ```
 
