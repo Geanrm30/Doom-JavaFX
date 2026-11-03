@@ -297,6 +297,7 @@ public class HudRenderer {
             double k = s == 0 ? k1 : k2;
             if (k <= 0) continue;
             double fade = s == 0 ? 1 - Math.max(0, (tt - 0.45) / 0.4) : 1 - Math.max(0, (tt - 0.85) / 0.15);
+            fade = Math.max(0, Math.min(1, fade));
             double x0 = s == 0 ? CW * 0.12 : CW * 0.88, y0 = CH * 0.12, x1 = s == 0 ? CW * 0.88 : CW * 0.12, y1 = CH * 0.88;
             double ex = x0 + (x1 - x0) * k, ey = y0 + (y1 - y0) * k;
             gc.setStroke(Color.rgb(220, 20, 20, 0.55 * fade));
