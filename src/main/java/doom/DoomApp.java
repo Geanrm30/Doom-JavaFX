@@ -74,10 +74,26 @@ public class DoomApp extends Application {
         world.onFullscreen = stage::setFullScreen;
 
         scene.setOnKeyPressed(e -> {
-            input.keyPressed(e.getCode());
-            if (e.getCode() == KeyCode.ESCAPE) {
+            KeyCode code = e.getCode();
+            if (code == KeyCode.ESCAPE) {
                 world.escape();
-            } else if (e.getCode() == KeyCode.F11) {
+                e.consume();
+                return;
+            }
+            if (code == KeyCode.BACK_QUOTE || code == KeyCode.F2) {
+                world.toggleConsole();
+                input.releaseAll();
+                resetMouse();
+                e.consume();
+                return;
+            }
+            if (world.consoleOpen) {
+                world.consoleKey(code, e.getText());
+                e.consume();
+                return;
+            }
+            input.keyPressed(e.getCode());
+            if (e.getCode() == KeyCode.F11) {
                 world.setFullscreen(!stage.isFullScreen());
                 world.progress.save();
             } else if (e.getCode() == KeyCode.L) {

@@ -56,7 +56,9 @@ public class World {
     private static final double[] DAMAGE_MULT = {0.5, 1.0, 1.6};
     /** 0 facil, 1 normal, 2 dificil: cambia el dano que recibes. */
 
-    private final Combo combo = new Combo();
+    public boolean consoleOpen;
+    public final StringBuilder consoleLine = new StringBuilder();
+    public String consoleReply = "";
     private boolean shield, assisted;
     private final Player levelStart = new Player();
     private final Random rnd = new Random();
@@ -149,29 +151,61 @@ public class World {
         state = levelIndex >= levelCount ? GameState.WON : GameState.LEVEL_DONE;
     }
 
-    private void apply(int c) {
+    public void toggleConsole() {
+        if (consoleOpen) {
+            consoleOpen = false;
+        } else if (state == GameState.PLAYING && !paused) {
+            consoleOpen = true;
+            consoleLine.setLength(0);
+            consoleReply = "";
+        }
+    }
+
+    /** Teclas con la consola abierta: texto, borrar, Enter para ejecutar. */
+    public void consoleKey(KeyCode k, String text) {
+        if (k == KeyCode.ENTER) {
+            String line = consoleLine.toString().trim();
+            consoleLine.setLength(0);
+            if (line.isEmpty()) return;
+            int c = Combo.match(line);
+            consoleReply = c < 0 ? "comando desconocido" : apply(c);
+        } else if (k == KeyCode.BACK_SPACE) {
+            if (consoleLine.length() > 0) consoleLine.setLength(consoleLine.length() - 1);
+        } else if (text != null && text.length() == 1 && consoleLine.length() < 24) {
+            char ch = text.charAt(0);
+            if (Character.isLetterOrDigit(ch) && ch < 128 || ch == ' ') consoleLine.append(ch);
+        }
+    }
+
+    private String apply(int c) {
         Player p = player;
         assisted = true;
+        String reply;
         switch (c) {
-            case Combo.GOD -> { shield = !shield; say("Escudo: " + (shield ? "SI" : "NO"), 1.5); }
-            case Combo.GHOST -> { p.ghost = !p.ghost; say("Fantasma: " + (p.ghost ? "SI" : "NO"), 1.5); }
+            case Combo.GOD -> { shield = !shield; reply = "escudo " + (shield ? "activado" : "desactivado"); }
+            case Combo.GHOST -> { p.ghost = !p.ghost; reply = "fantasma " + (p.ghost ? "activado" : "desactivado"); }
             case Combo.ARSENAL -> {
                 p.has[1] = p.has[2] = true;
                 p.ammo[0] = Player.MAX_AMMO[0];
                 p.ammo[1] = Player.MAX_AMMO[1];
                 p.armor = 200;
-                say("Arsenal", 1.5);
+                reply = "armas y municion al maximo";
             }
-            case Combo.KEYS -> { p.redKey = p.blueKey = true; say("Llaves", 1.5); }
-            case Combo.HEAL -> { p.health = 200; p.armor = Math.max(p.armor, 100); say("Salud", 1.5); }
+            case Combo.KEYS -> { p.redKey = p.blueKey = true; reply = "llaves obtenidas"; }
+            case Combo.HEAL -> { p.health = 200; p.armor = Math.max(p.armor, 100); reply = "salud restaurada"; }
             case Combo.KILL -> {
                 for (Enemy e : enemies) if (e.alive && e.hit(100000)) onKill(e);
-                say("Limpio", 1.5);
+                reply = "enemigos eliminados";
             }
-            case Combo.SKIP -> { finishLevel(); return; }
-            default -> { return; }
+            case Combo.SKIP -> {
+                consoleOpen = false;
+                finishLevel();
+                return "";
+            }
+            default -> { return "comando desconocido"; }
         }
         sound.play(SoundFx.POWERUP);
+        return reply;
     }
 
     /** Mensaje corto en pantalla (lo usa tambien la ventana). */
@@ -196,7 +230,7 @@ public class World {
     private void toTitle() {
         shield = false;
         player.ghost = false;
-        combo.clear();
+        consoleOpen = false;
         paused = false;
         state = GameState.TITLE;
         screen = Screen.MAIN;
@@ -207,6 +241,10 @@ public class World {
 
     /** ESC: pausa durante el juego, vuelve atras en los menus y al titulo desde las pantallas finales. */
     public void escape() {
+        if (consoleOpen) {
+            consoleOpen = false;
+            return;
+        }
         switch (state) {
             case TITLE -> menuBack();
             case PLAYING -> {
@@ -410,10 +448,6 @@ public class World {
     // ---------------------------------------------------------------- entrada discreta
 
     public void keyPressed(KeyCode k) {
-        if (state == GameState.PLAYING && !paused && k.isLetterKey()) {
-            int c = combo.feed(k.getName().charAt(0));
-            if (c >= 0) apply(c);
-        }
         if (k == KeyCode.M) {
             sound.muted = !sound.muted;
             progress.muted = sound.muted;
@@ -452,7 +486,7 @@ public class World {
 
     /** Rueda del raton: siguiente (+1) o anterior (-1) arma disponible. */
     public void cycleWeapon(int dir) {
-        if (state != GameState.PLAYING || paused) return;
+        if (state != GameState.PLAYING || paused || consoleOpen) return;
         int n = Weapon.values().length;
         int i = player.weapon.ordinal();
         for (int step = 0; step < n; step++) {
@@ -498,7 +532,7 @@ public class World {
         if (p.dmgFlash > 0) p.dmgFlash -= dt;
         if (p.pickFlash > 0) p.pickFlash -= dt;
 
-        if (state != GameState.PLAYING || paused) return;
+        if (state != GameState.PLAYING || paused || consoleOpen) return;
         time += dt;
         if (p.invuln > 0) p.invuln -= dt;
 

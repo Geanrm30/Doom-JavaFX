@@ -54,6 +54,8 @@ public class HudRenderer {
             drawMessage(gc, world);
         }
 
+        if (world.consoleOpen) drawConsole(gc, world);
+
         switch (st) {
             case DEAD -> drawBanner(gc, "HAS MUERTO", Color.rgb(220, 40, 30), "ENTER: reintentar el nivel");
             case LEVEL_DONE -> drawIntermission(gc, world, false);
@@ -395,6 +397,22 @@ public class HudRenderer {
         }
         gc.setTextAlign(TextAlignment.LEFT);
         drawMenu(gc, world);
+    }
+
+    private void drawConsole(GraphicsContext gc, World world) {
+        gc.setFill(Color.rgb(0, 0, 0, 0.82));
+        gc.fillRect(0, 0, CW, 78);
+        gc.setStroke(Color.rgb(230, 200, 90));
+        gc.setLineWidth(1);
+        gc.strokeLine(0, 78.5, CW, 78.5);
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
+        gc.setTextAlign(TextAlignment.LEFT);
+        gc.setFill(Color.rgb(255, 235, 130));
+        boolean caret = (System.currentTimeMillis() / 500) % 2 == 0;
+        gc.fillText("> " + world.consoleLine + (caret ? "_" : ""), 16, 32);
+        gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 16));
+        gc.setFill(Color.rgb(170, 170, 170));
+        gc.fillText(world.consoleReply, 16, 60);
     }
 
     private void drawPause(GraphicsContext gc, World world) {
