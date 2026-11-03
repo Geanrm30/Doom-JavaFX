@@ -27,6 +27,10 @@ public final class Level {
     private final float[][] doorOpen;
     private final byte[][] doorPhase;
     private final float[][] doorTimer;
+    /** Distancia en celdas hasta el jugador (BFS); los enemigos la siguen para rodear paredes. */
+    private int[][] flow;
+    private int flowCx = Integer.MIN_VALUE, flowCy;
+    public static final int UNREACHABLE = 1 << 20;
     private static final double DOOR_SPEED = 1.6, DOOR_HOLD = 4.5;
 
     private Level(String name, char[][] cells, int[] ceiling, int[] floor, double fog) {
@@ -143,6 +147,61 @@ public final class Level {
         if (c == '.') return false;
         if (isDoor(c)) return doorOpen[cy][cx] < 0.8f;
         return true;
+    }
+
+    /** Los enemigos atraviesan celdas libres y puertas normales (las de llave no). */
+    public boolean passable(int cx, int cy) {
+        return !isWall(cx, cy) || cell(cx, cy) == 'D';
+    }
+
+    public void updateFlow(double px, double py) {
+        int cx = (int) px, cy = (int) py;
+        if (cx == flowCx && cy == flowCy) return;
+        flowCx = cx;
+        flowCy = cy;
+        if (flow == null) flow = new int[height][width];
+        for (int[] row : flow) java.util.Arrays.fill(row, UNREACHABLE);
+        if (cx < 0 || cy < 0 || cx >= width || cy >= height) return;
+        int[] queue = new int[width * height];
+        int head = 0, tail = 0;
+        flow[cy][cx] = 0;
+        queue[tail++] = cy * width + cx;
+        while (head < tail) {
+            int cur = queue[head++];
+            int x = cur % width, y = cur / width;
+            for (int d = 0; d < 4; d++) {
+                int nx = x + (d == 0 ? 1 : d == 1 ? -1 : 0), ny = y + (d == 2 ? 1 : d == 3 ? -1 : 0);
+                if (nx < 0 || ny < 0 || nx >= width || ny >= height || flow[ny][nx] != UNREACHABLE) continue;
+                if (!passable(nx, ny)) continue;
+                flow[ny][nx] = flow[y][x] + 1;
+                queue[tail++] = ny * width + nx;
+            }
+        }
+    }
+
+    public int flowAt(int cx, int cy) {
+        if (flow == null || cx < 0 || cy < 0 || cx >= width || cy >= height) return UNREACHABLE;
+        return flow[cy][cx];
+    }
+
+    /** Siguiente celda (centro) para acercarse al jugador desde (cx, cy), o null si no hay camino. */
+    public int[] nextStep(int cx, int cy) {
+        int here = flowAt(cx, cy);
+        if (here == UNREACHABLE || here == 0) return null;
+        int best = here, bx = 0, by = 0;
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (dx == 0 && dy == 0) continue;
+                int nx = cx + dx, ny = cy + dy;
+                int f = flowAt(nx, ny);
+                if (f >= best) continue;
+                if (dx != 0 && dy != 0 && (!passable(cx + dx, cy) || !passable(cx, cy + dy))) continue;
+                best = f;
+                bx = nx;
+                by = ny;
+            }
+        }
+        return best < here ? new int[]{bx, by} : null;
     }
 
     /** Empieza a abrir la puerta; si ya esta abierta, reinicia la espera. */

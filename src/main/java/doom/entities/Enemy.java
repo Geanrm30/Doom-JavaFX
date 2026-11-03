@@ -77,13 +77,36 @@ public class Enemy extends Sprite {
             case CYBER -> 3.0;
             default -> 1.1;
         };
-        if (dist > stop) {
+        boolean direct = dist < 1.6 || (los && w.level.flowAt((int) x, (int) y) <= dist * 1.5 + 2);
+        double tx = p.x, ty = p.y;
+        if (!direct) {
+            int[] next = w.level.nextStep((int) x, (int) y);
+            if (next != null) {
+                tx = next[0] + 0.5;
+                ty = next[1] + 0.5;
+                if (w.level.isWall(next[0], next[1]) && w.level.cell(next[0], next[1]) == 'D') {
+                    if (w.level.openness(next[0], next[1]) == 0) w.sound.play(SoundFx.DOOR, next[0] + 0.5, next[1] + 0.5);
+                    w.level.open(next[0], next[1]);
+                }
+            }
+        }
+        double mdx = tx - x, mdy = ty - y, md = Math.hypot(mdx, mdy);
+        if (md > 1e-6 && (!direct || dist > stop)) {
             double sp = type.speed * dt;
-            double nx = x + dx / dist * sp;
-            double ny = y + dy / dist * sp;
+            double nx = x + mdx / md * sp;
+            double ny = y + mdy / md * sp;
             double ox = x, oy = y;
             if (canStand(w, nx, y)) x = nx;
             if (canStand(w, x, ny)) y = ny;
+            if (Math.hypot(x - ox, y - oy) < sp * 0.3) {
+                // atascado (otro enemigo o una esquina): despierta a los vecinos y prueba a rodear por los lados
+                for (Enemy o : w.enemies) if (o != this && o.alive && Math.hypot(o.x - x, o.y - y) < 1.2) o.awake = true;
+                double base = Math.atan2(mdy, mdx);
+                for (double turn : new double[]{0.8, -0.8, 1.57, -1.57, 2.4, -2.4}) {
+                    double ax = x + Math.cos(base + turn) * sp, ay = y + Math.sin(base + turn) * sp;
+                    if (canStand(w, ax, ay)) { x = ax; y = ay; break; }
+                }
+            }
             walkPhase += Math.hypot(x - ox, y - oy) * 2.2;
         }
 
@@ -121,7 +144,8 @@ public class Enemy extends Sprite {
             return false;
         }
         for (Enemy o : w.enemies) {
-            if (o != this && o.alive && Math.abs(o.x - nx) < 0.55 && Math.abs(o.y - ny) < 0.55) return false;
+            if (o != this && o.alive && Math.abs(o.x - nx) < 0.55 && Math.abs(o.y - ny) < 0.55
+                    && Math.hypot(o.x - nx, o.y - ny) < Math.hypot(o.x - x, o.y - y)) return false; // solo impide acercarse
         }
         return true;
     }

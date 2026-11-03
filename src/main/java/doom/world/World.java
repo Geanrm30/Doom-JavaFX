@@ -562,6 +562,7 @@ public class World {
         }
 
         sound.listener(p.x, p.y, p.angle);
+        level.updateFlow(p.x, p.y);
         level.updateDoors(dt, new Level.DoorListener() {
             public boolean blocked(int cx, int cy) {
                 if (Math.abs(player.x - cx - 0.5) < 0.8 && Math.abs(player.y - cy - 0.5) < 0.8) return true;
@@ -727,7 +728,7 @@ public class World {
         for (Enemy e : enemies) {
             if (!e.alive || e.awake) continue;
             double d = Math.hypot(e.x - p.x, e.y - p.y);
-            if (d < 4 || (d < 10 && level.lineOfSight(p.x, p.y, e.x, e.y))) e.awake = true;
+            if (d < 4 || (d < 10 && level.lineOfSight(p.x, p.y, e.x, e.y)) || level.flowAt((int) e.x, (int) e.y) <= 12) e.awake = true;
         }
 
         for (int i = 0; i < w.pellets; i++) {
