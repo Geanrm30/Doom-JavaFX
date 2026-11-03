@@ -24,6 +24,7 @@ public final class Progress {
     public boolean mouseLook = true;
     public boolean muted = false;
     public int volume = 8;
+    public boolean music = true;
     public boolean fullscreen = true;
     public final double[] bestTime = new double[MAX_LEVELS + 1];
 
@@ -60,6 +61,7 @@ public final class Progress {
         p.mouseLook = bool(props, "mouseLook", true);
         p.muted = bool(props, "muted", false);
         p.volume = num(props, "volume", 8, 0, 10);
+        p.music = bool(props, "music", true);
         p.fullscreen = bool(props, "fullscreen", true);
         for (int i = 1; i <= MAX_LEVELS; i++) {
             p.bestTime[i] = dbl(props, "best." + i, 0, 0, 86_400);
@@ -88,6 +90,7 @@ public final class Progress {
         props.setProperty("mouseLook", Boolean.toString(mouseLook));
         props.setProperty("muted", Boolean.toString(muted));
         props.setProperty("volume", Integer.toString(volume));
+        props.setProperty("music", Boolean.toString(music));
         props.setProperty("fullscreen", Boolean.toString(fullscreen));
         for (int i = 1; i <= MAX_LEVELS; i++) {
             if (bestTime[i] > 0) props.setProperty("best." + i, Double.toString(bestTime[i]));

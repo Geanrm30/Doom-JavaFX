@@ -41,11 +41,21 @@ public class SoundFx {
 
     private volatile double lx, ly, langle;
 
+    // musica: la pista se compone en otro hilo y se repite en el mezclador
+    private final float[][] musicCache = new float[100][];
+    private volatile int musicWanted = -1;
+    private volatile int musicEpoch;
+    private int musicShown = -1;
+    /** Volumen relativo de la musica respecto a los efectos. */
+    private static final float MUSIC_GAIN = 0.32f;
+
     private static final class Voice {
         final float[] data;
         double pos;
         final double step;
         final float left, right;
+        boolean loop;
+        int epoch = -1; // >= 0: voz de musica
 
         Voice(float[] data, double step, float left, float right) {
             this.data = data;
@@ -95,6 +105,34 @@ public class SoundFx {
         queue(id, (float) (g * (0.35 + 0.65 * l)), (float) (g * (0.35 + 0.65 * r)), d);
     }
 
+    /** Pide la musica del nivel {@code level} (o ninguna si es negativo). */
+    public void musicTrack(int level) {
+        if (line == null || muted || volume <= 0) level = -1;
+        if (level == musicWanted) return;
+        musicWanted = level;
+        final int epoch = ++musicEpoch;
+        if (level < 0 || level >= musicCache.length) return;
+        final int lv = level;
+        Thread t = new Thread(() -> {
+            try {
+                float[] data = musicCache[lv];
+                if (data == null) {
+                    data = Music.compose(lv);
+                    musicCache[lv] = data;
+                }
+                if (epoch != musicEpoch) return;
+                Voice v = new Voice(data, 1.0, MUSIC_GAIN, MUSIC_GAIN);
+                v.loop = true;
+                v.epoch = epoch;
+                incoming.add(v);
+            } catch (Throwable ignored) {
+                // sin musica, pero el juego sigue
+            }
+        }, "compositor");
+        t.setDaemon(true);
+        t.start();
+    }
+
     private void queue(int id, float gl, float gr, double dist) {
         if (muted || volume <= 0 || id < 0 || id >= COUNT || bank[id] == null) return;
         long now = System.nanoTime();
@@ -134,9 +172,15 @@ public class SoundFx {
     private void drain() {
         Voice v;
         while ((v = incoming.poll()) != null) {
-            if (voices.size() >= MAX_VOICES) voices.remove(0);
+            if (voices.size() >= MAX_VOICES) {
+                for (int i = 0; i < voices.size(); i++) {
+                    if (voices.get(i).epoch < 0) { voices.remove(i); break; }
+                }
+            }
             voices.add(v);
         }
+        int cur = musicEpoch;
+        voices.removeIf(x -> x.epoch >= 0 && x.epoch != cur);
     }
 
     /** Mezcla {@code frames} cuadros estereo en {@code mix} (visible para pruebas). */
@@ -149,8 +193,13 @@ public class SoundFx {
             for (int i = 0; i < frames; i++) {
                 int p = (int) v.pos;
                 if (p >= d.length - 1) {
-                    voices.remove(k);
-                    break;
+                    if (v.loop) {
+                        v.pos -= d.length - 1;
+                        p = (int) v.pos;
+                    } else {
+                        voices.remove(k);
+                        break;
+                    }
                 }
                 float f = (float) (v.pos - p);
                 float s = d[p] * (1 - f) + d[p + 1] * f;

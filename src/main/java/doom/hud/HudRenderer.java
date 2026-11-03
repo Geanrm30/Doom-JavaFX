@@ -368,7 +368,7 @@ public class HudRenderer {
             if (!row.value().isEmpty()) {
                 gc.setTextAlign(TextAlignment.RIGHT);
                 boolean adjustable = (world.screen == World.Screen.MAIN && idx == 2)
-                        || (world.screen == World.Screen.OPTIONS && idx <= 3);
+                        || (world.screen == World.Screen.OPTIONS && idx <= 4);
                 String v = sel && adjustable ? "<  " + row.value() + "  >" : row.value();
                 gc.setFill(row.enabled() ? (sel ? Color.rgb(255, 235, 130) : Color.rgb(230, 200, 90))
                         : Color.rgb(150, 70, 60));

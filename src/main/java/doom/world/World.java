@@ -302,6 +302,7 @@ public class World {
                 r.add(new Row("SENSIBILIDAD DEL RATON", progress.sensitivity + " / 10", true));
                 r.add(new Row("GIRO CON EL RATON", progress.mouseLook ? "SI" : "NO", true));
                 r.add(new Row("VOLUMEN", sound.muted ? "SILENCIO" : progress.volume + " / 10", true));
+                r.add(new Row("MUSICA", progress.music ? "SI" : "NO", true));
                 r.add(new Row("PANTALLA COMPLETA", progress.fullscreen ? "SI" : "NO", true));
                 r.add(new Row(confirmReset ? "SEGURO? PULSA ENTER OTRA VEZ" : "BORRAR PROGRESO", "", true));
                 r.add(new Row("VOLVER", "", true));
@@ -372,7 +373,8 @@ public class World {
                     if (dir > 0 && progress.muted) { progress.muted = false; sound.muted = false; }
                     sound.play(SoundFx.PICKUP);
                 }
-                case 3 -> setFullscreen(!progress.fullscreen);
+                case 3 -> progress.music = !progress.music;
+                case 4 -> setFullscreen(!progress.fullscreen);
                 default -> { return; }
             }
             progress.save();
@@ -386,7 +388,7 @@ public class World {
 
     /** Clic sobre una fila: dir -1/+1 si se pulso la flecha izquierda/derecha del valor, 0 para activar. */
     public void menuClick(int dir) {
-        boolean adjustable = (screen == Screen.MAIN && menuIndex == 2) || (screen == Screen.OPTIONS && menuIndex <= 3);
+        boolean adjustable = (screen == Screen.MAIN && menuIndex == 2) || (screen == Screen.OPTIONS && menuIndex <= 4);
         if (dir != 0 && adjustable) menuAdjust(dir);
         else menuActivate();
     }
@@ -415,8 +417,8 @@ public class World {
                         sound.volume = progress.volume;
                         progress.save();
                     }
-                    case 1, 3 -> menuAdjust(1);
-                    case 4 -> {
+                    case 1, 3, 4 -> menuAdjust(1);
+                    case 5 -> {
                         if (confirmReset) {
                             progress.resetProgress();
                             progress.save();
@@ -564,6 +566,7 @@ public class World {
         }
 
         sound.listener(p.x, p.y, p.angle);
+        sound.musicTrack(progress.music && state == GameState.PLAYING ? levelIndex : -1);
         level.updateFlow(p.x, p.y);
         level.updateDoors(dt, new Level.DoorListener() {
             public boolean blocked(int cx, int cy) {
