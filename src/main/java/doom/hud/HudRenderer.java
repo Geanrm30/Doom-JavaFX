@@ -49,7 +49,7 @@ public class HudRenderer {
         drawMessage(gc, world);
         drawBossBar(gc, world);
         if (world.paused && st == GameState.PLAYING) {
-            drawBanner(gc, "PAUSA", Color.rgb(230, 200, 90), "P: continuar");
+            drawBanner(gc, "PAUSA", Color.rgb(230, 200, 90), "ESC: continuar    T: volver al titulo");
         }
 
         switch (st) {

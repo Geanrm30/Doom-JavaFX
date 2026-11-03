@@ -26,9 +26,9 @@ En Windows: `mvnw.cmd javafx:run`. Desde IntelliJ, ejecuta la clase `doom.Launch
 | F o ENTER | Usar (abrir puertas, activar la salida) |
 | 1 2 3 | Cambiar de arma |
 | TAB | Mostrar u ocultar el minimapa |
-| P | Pausa |
 | M | Silenciar o activar el sonido |
-| ESC | Volver al titulo (y salir desde el titulo) |
+| ESC o P | Pausa (con el juego en pausa, T vuelve al titulo) |
+| ESC | En el titulo cierra el juego; en las pantallas de muerte y estadisticas vuelve al titulo |
 
 En la pantalla de titulo, izquierda y derecha eligen el nivel inicial. Al morir, ENTER
 reintenta el nivel actual.

@@ -41,8 +41,7 @@ public class DoomApp extends Application {
         scene.setOnKeyPressed(e -> {
             input.keyPressed(e.getCode());
             if (e.getCode() == KeyCode.ESCAPE) {
-                if (world.state == GameState.TITLE) stage.close();
-                else world.state = GameState.TITLE;
+                if (world.escape()) stage.close();
             } else {
                 world.keyPressed(e.getCode());
             }

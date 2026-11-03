@@ -96,6 +96,26 @@ public class World {
         state = levelIndex >= levelCount ? GameState.WON : GameState.LEVEL_DONE;
     }
 
+    /** Mensaje corto en pantalla (lo usa tambien la ventana). */
+    public void notice(String msg) {
+        say(msg, 2.0);
+    }
+
+    /** ESC: pausa durante el juego, vuelve al titulo desde las pantallas finales. @return true si hay que cerrar el juego */
+    public boolean escape() {
+        switch (state) {
+            case TITLE -> {
+                return true;
+            }
+            case PLAYING -> paused = !paused;
+            default -> {
+                paused = false;
+                state = GameState.TITLE;
+            }
+        }
+        return false;
+    }
+
     private void say(String msg, double secs) {
         message = msg;
         messageTimer = secs;
@@ -115,6 +135,14 @@ public class World {
                 else if (k == KeyCode.LEFT || k == KeyCode.A) titleLevel = Math.max(1, titleLevel - 1);
             }
             case PLAYING -> {
+                if (paused) {
+                    if (k == KeyCode.P || k == KeyCode.ENTER) paused = false;
+                    else if (k == KeyCode.T) {
+                        paused = false;
+                        state = GameState.TITLE;
+                    }
+                    return;
+                }
                 switch (k) {
                     case F, ENTER -> use();
                     case TAB -> showMap = !showMap;
