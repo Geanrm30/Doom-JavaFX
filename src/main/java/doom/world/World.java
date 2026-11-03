@@ -21,6 +21,8 @@ public class World {
 
     public final Player player = new Player();
     public final List<Enemy> enemies = new ArrayList<>();
+    /** Enemigos invocados durante el turno; se anaden al terminar de recorrer la lista. */
+    public final List<Enemy> spawned = new ArrayList<>();
     public final List<Pickup> pickups = new ArrayList<>();
     public final List<Projectile> projectiles = new ArrayList<>();
     public final List<Barrel> barrels = new ArrayList<>();
@@ -109,6 +111,7 @@ public class World {
         levelStart.copyInventoryFrom(player);
 
         enemies.clear();
+        spawned.clear();
         pickups.clear();
         projectiles.clear();
         barrels.clear();
@@ -675,6 +678,10 @@ public class World {
             }
         });
         for (Enemy e : enemies) e.update(dt, this);
+        if (!spawned.isEmpty()) {
+            enemies.addAll(spawned);
+            spawned.clear();
+        }
         for (Projectile pr : projectiles) pr.update(dt, this);
         projectiles.removeIf(pr -> !pr.alive);
         for (Effect ef : effects) ef.update(dt);
@@ -1161,21 +1168,34 @@ public class World {
     }
 
     private void onKill(Enemy e) {
-        kills++;
+        if (!e.summoned) kills++;
+        if (e.type == EnemyType.PAIN) {
+            for (int i = 0; i < 3; i++) {
+                double a = i * 2.1 + rnd.nextDouble();
+                double sx = e.x + Math.cos(a) * 0.7, sy = e.y + Math.sin(a) * 0.7;
+                if (level.isWall((int) sx, (int) sy)) continue;
+                Enemy ls = new Enemy(EnemyType.LOST_SOUL, sx, sy);
+                ls.awake = true;
+                ls.summoned = true;
+                spawned.add(ls);
+            }
+        }
         if (e.type.isBoss() && !bossAlive()) {
             say("JEFE DERROTADO: la salida esta abierta", 4.0);
             sound.play(SoundFx.POWERUP);
         }
         sound.play(switch (e.type) {
-            case ZOMBIE -> SoundFx.DIE_HUMAN;
-            case IMP -> SoundFx.DIE_IMP;
-            case DEMON -> SoundFx.DIE_DEMON;
-            case CACO -> SoundFx.DIE_CACO;
-            case BARON -> SoundFx.DIE_DEMON;
+            case ZOMBIE, SHOTGUNNER, CHAINGUNNER, SS -> SoundFx.DIE_HUMAN;
+            case IMP, ARCHVILE, REVENANT -> SoundFx.DIE_IMP;
+            case DEMON, SPECTRE, MANCUBUS -> SoundFx.DIE_DEMON;
+            case CACO, LOST_SOUL, PAIN -> SoundFx.DIE_CACO;
+            case BARON, HELL_KNIGHT -> SoundFx.DIE_DEMON;
             default -> SoundFx.DIE_BOSS;
         }, e.x, e.y);
-        if (e.type == EnemyType.ZOMBIE && rnd.nextDouble() < 0.8) {
+        if ((e.type == EnemyType.ZOMBIE || e.type == EnemyType.SS || e.type == EnemyType.CHAINGUNNER) && rnd.nextDouble() < 0.8) {
             pickups.add(new Pickup(e.x, e.y, Pickup.CLIP));
+        } else if (e.type == EnemyType.SHOTGUNNER && rnd.nextDouble() < 0.8) {
+            pickups.add(new Pickup(e.x, e.y, Pickup.SHELLS));
         }
     }
 }

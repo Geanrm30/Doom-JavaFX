@@ -39,6 +39,7 @@ public class SpriteRenderer {
             int startY = floorY - sprH - (int) (fullH * s.lift);
             int endY = startY + sprH;
             int startX = screenX - sprH / 2;
+            boolean glass = s.translucent();
             double light = Math.max(0.25, Math.min(1.0, 1.0 / (1.0 + ty * world.level.fog * 0.9)));
 
             for (int sx = Math.max(0, startX); sx < Math.min(W, startX + sprH); sx++) {
@@ -47,7 +48,16 @@ public class SpriteRenderer {
                 for (int sy = Math.max(0, startY); sy < Math.min(H, endY); sy++) {
                     double v = (double) (sy - startY) / sprH;
                     int color = s.colorAt(u, v);
-                    if (color != 0) pixels[sy * W + sx] = ColorUtils.shade(color, light);
+                    if (color == 0) continue;
+                    int lit = ColorUtils.shade(color, light);
+                    if (glass) {
+                        int old = pixels[sy * W + sx];
+                        int r = (((old >> 16) & 255) * 11 + ((lit >> 16) & 255) * 5) >> 4;
+                        int g = (((old >> 8) & 255) * 11 + ((lit >> 8) & 255) * 5) >> 4;
+                        int b = ((old & 255) * 11 + (lit & 255) * 5) >> 4;
+                        lit = ColorUtils.rgb(r, g, b);
+                    }
+                    pixels[sy * W + sx] = lit;
                 }
             }
         }

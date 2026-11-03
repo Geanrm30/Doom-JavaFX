@@ -156,6 +156,14 @@ public final class I18n {
         part("ciberdemonio", "cyberdemon");
         part("demonio", "demon");
         part("baron jefe", "boss baron");
+        part("escopetero", "shotgunner");
+        part("ametrallador", "chaingunner");
+        part("soldado ss", "ss soldier");
+        part("espectro", "spectre");
+        part("alma perdida", "lost soul");
+        part("elemental del dolor", "pain elemental");
+        part("caballero infernal", "hell knight");
+        part("icono del pecado", "icon of sin");
         part("pistola", "pistol");
         part("escopeta", "shotgun");
         part("ametralladora", "chaingun");

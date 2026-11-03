@@ -19,6 +19,11 @@ public class Enemy extends Sprite {
     /** Animacion: fase de caminata, tiempo de ataque restante y tiempo desde la muerte. */
     private double walkPhase, attackAnim, deathTime, painGap;
     private boolean sighted, painPending;
+    /** Invocado por un Elemental del dolor o el Icono: no cuenta para el total de enemigos. */
+    public boolean summoned;
+    private double chargeT, chargeDx, chargeDy, flameT, burstT;
+    private boolean chargeHit;
+    private int burst;
     /** Hacia donde mira el enemigo (radianes) y la vista elegida para la camara. */
     private double facing;
     private int view;
@@ -76,10 +81,18 @@ public class Enemy extends Sprite {
             w.sound.play(sightSound(), x, y);
         }
 
+        if (chargeT > 0) {
+            charge(dt, w, p);
+            return;
+        }
         double stop = switch (type) {
-            case ZOMBIE -> 3.5;
+            case ZOMBIE, SS -> 3.5;
+            case SHOTGUNNER -> 3.0;
+            case CHAINGUNNER -> 4.0;
             case CACO -> 2.4;
-            case CYBER -> 3.0;
+            case CYBER, MANCUBUS -> 3.0;
+            case PAIN -> 3.5;
+            case ARCHVILE -> 5.0;
             default -> 1.1;
         };
         if (los) facing = Math.atan2(dy, dx);
@@ -98,7 +111,7 @@ public class Enemy extends Sprite {
         }
         double mdx = tx - x, mdy = ty - y, md = Math.hypot(mdx, mdy);
         if (!los && md > 1e-6) facing = Math.atan2(mdy, mdx);
-        if (md > 1e-6 && (!direct || dist > stop)) {
+        if (type.speed > 0 && md > 1e-6 && (!direct || dist > stop)) {
             double sp = type.speed * dt;
             double nx = x + mdx / md * sp;
             double ny = y + mdy / md * sp;
@@ -117,31 +130,135 @@ public class Enemy extends Sprite {
             walkPhase += Math.hypot(x - ox, y - oy) * 2.2;
         }
 
+        if (burst > 0) {
+            burstT -= dt;
+            if (burstT <= 0) {
+                burst--;
+                burstT = 0.11;
+                attackAnim = 0.16;
+                w.sound.play(SoundFx.CHAINGUN, x, y);
+                if (los && RND.nextDouble() < Math.max(0.15, 0.7 - dist * 0.04)) w.hurtPlayer(type.rangedDmg + RND.nextInt(3));
+            }
+        }
+        if (flameT > 0) {
+            flameT -= dt;
+            if (flameT <= 0 && los && dist < 16) {
+                w.sound.play(SoundFx.EXPLODE, p.x, p.y);
+                w.effects.add(new Effect(p.x - Math.cos(facing) * 0.4, p.y - Math.sin(facing) * 0.4, 0));
+                w.hurtPlayer(type.rangedDmg + RND.nextInt(6));
+            }
+        }
         if (cooldown > 0) return;
         if (type.meleeDmg > 0 && dist < 1.3) {
-            w.sound.play(type == EnemyType.DEMON ? SoundFx.BITE : SoundFx.CLAW, x, y);
+            w.sound.play(type == EnemyType.DEMON || type == EnemyType.SPECTRE ? SoundFx.BITE : SoundFx.CLAW, x, y);
             w.hurtPlayer(type.meleeDmg);
             cooldown = type.meleeCd;
             attackAnim = 0.35;
-        } else if (type.ranged != EnemyType.Ranged.NONE && los && dist < 13) {
-            if (type.ranged == EnemyType.Ranged.HITSCAN) {
-                w.sound.play(SoundFx.ZOMBIE_SHOT, x, y);
-                double chance = Math.max(0.2, 0.8 - dist * 0.045);
-                if (RND.nextDouble() < chance) w.hurtPlayer(type.rangedDmg + RND.nextInt(4));
-            } else {
-                double speed = type.isBoss() ? 6.0 : type == EnemyType.BARON ? 5.5 : 4.2;
-                w.sound.play(SoundFx.FIREBALL, x, y);
-                double[] spread = type == EnemyType.CYBER ? new double[]{-0.2, 0, 0.2} : new double[]{0};
-                for (double s : spread) {
-                    double c = Math.cos(s), sn = Math.sin(s);
-                    double ux = dx / dist, uy = dy / dist;
-                    w.projectiles.add(new Projectile(x, y, ux * c - uy * sn, ux * sn + uy * c, speed,
-                            type.rangedDmg + RND.nextInt(5)));
+        } else if (type.ranged != EnemyType.Ranged.NONE && (type.ranged == EnemyType.Ranged.SPAWN || los)
+                && dist < (type.ranged == EnemyType.Ranged.LUNGE ? 8 : type.ranged == EnemyType.Ranged.FLAME ? 14 : 13)) {
+            double ux = dx / dist, uy = dy / dist;
+            switch (type.ranged) {
+                case HITSCAN -> {
+                    w.sound.play(SoundFx.ZOMBIE_SHOT, x, y);
+                    double chance = Math.max(0.2, 0.8 - dist * 0.045);
+                    if (RND.nextDouble() < chance) w.hurtPlayer(type.rangedDmg + RND.nextInt(4));
                 }
+                case SHOTGUN -> {
+                    w.sound.play(SoundFx.SHOTGUN, x, y);
+                    double chance = Math.max(0.15, 0.7 - dist * 0.05);
+                    for (int i = 0; i < 3; i++) if (RND.nextDouble() < chance) w.hurtPlayer(type.rangedDmg + RND.nextInt(4));
+                }
+                case BURST -> {
+                    burst = 4;
+                    burstT = 0;
+                }
+                case FIREBALL, SPREAD, MISSILE -> {
+                    boolean knight = type == EnemyType.HELL_KNIGHT;
+                    double speed = type.isBoss() ? 6.0 : (type == EnemyType.BARON || knight) ? 5.5
+                            : type == EnemyType.REVENANT ? 3.6 : type == EnemyType.MANCUBUS ? 4.6 : 4.2;
+                    w.sound.play(type == EnemyType.REVENANT ? SoundFx.ROCKET : SoundFx.FIREBALL, x, y);
+                    double[] spread = type == EnemyType.CYBER || type == EnemyType.MANCUBUS ? new double[]{-0.22, 0, 0.22}
+                            : new double[]{0};
+                    for (double sp : spread) {
+                        double c = Math.cos(sp), sn = Math.sin(sp);
+                        w.projectiles.add(new Projectile(x, y, ux * c - uy * sn, ux * sn + uy * c, speed,
+                                type.rangedDmg + RND.nextInt(5), type == EnemyType.REVENANT ? 3 : 0));
+                    }
+                }
+                case LUNGE -> {
+                    w.sound.play(SoundFx.SIGHT_CACO, x, y);
+                    chargeT = 0.9;
+                    chargeDx = ux;
+                    chargeDy = uy;
+                    chargeHit = false;
+                }
+                case FLAME -> {
+                    w.sound.play(SoundFx.SIGHT_IMP, x, y);
+                    flameT = 0.9;
+                    attackAnim = 0.9;
+                }
+                case SPAWN -> spawn(w, ux, uy);
+                default -> { }
             }
             cooldown = type.rangedCd * (0.8 + RND.nextDouble() * 0.5);
-            attackAnim = 0.4;
+            if (flameT <= 0) attackAnim = 0.4;
         }
+    }
+
+    /** Alma perdida: embestida en linea recta; hace dano al tocar al jugador. */
+    private void charge(double dt, World w, Player p) {
+        chargeT -= dt;
+        attackAnim = 0.1;
+        double nx = x + chargeDx * 9.0 * dt, ny = y + chargeDy * 9.0 * dt;
+        if (w.level.isWall((int) nx, (int) ny)) {
+            chargeT = 0;
+            return;
+        }
+        x = nx;
+        y = ny;
+        if (!chargeHit && Math.hypot(p.x - x, p.y - y) < 0.65) {
+            chargeHit = true;
+            chargeT = Math.min(chargeT, 0.15);
+            w.sound.play(SoundFx.BITE, x, y);
+            w.hurtPlayer(type.rangedDmg + RND.nextInt(5));
+        }
+    }
+
+    /** Elemental del dolor: escupe almas perdidas. Icono del pecado: invoca demonios. */
+    private void spawn(World w, double ux, double uy) {
+        int alive = 0;
+        for (Enemy o : w.enemies) if (o.alive && o.summoned) alive++;
+        int cap = type == EnemyType.ICON ? 9 : 6;
+        if (alive >= cap) return;
+        EnemyType kind = EnemyType.LOST_SOUL;
+        double sx = x + ux * 0.9, sy = y + uy * 0.9;
+        if (type == EnemyType.ICON) {
+            EnemyType[] pool = {EnemyType.IMP, EnemyType.IMP, EnemyType.DEMON, EnemyType.SHOTGUNNER,
+                    EnemyType.CACO, EnemyType.REVENANT, EnemyType.LOST_SOUL, EnemyType.HELL_KNIGHT};
+            kind = pool[RND.nextInt(pool.length)];
+            boolean placed = false;
+            for (int i = 0; i < 12 && !placed; i++) {
+                double a = RND.nextDouble() * Math.PI * 2, r = 2.0 + RND.nextDouble() * 3.5;
+                sx = x + Math.cos(a) * r;
+                sy = y + Math.sin(a) * r;
+                placed = !w.level.isWall((int) sx, (int) sy) && w.level.lineOfSight(x, y, sx, sy);
+            }
+            if (!placed) return;
+        } else if (w.level.isWall((int) sx, (int) sy)) {
+            sx = x;
+            sy = y;
+        }
+        Enemy e = new Enemy(kind, sx, sy);
+        e.awake = true;
+        e.summoned = true;
+        w.spawned.add(e);
+        w.sound.play(SoundFx.SIGHT_BOSS, sx, sy);
+        w.effects.add(new Effect(sx, sy, 0));
+    }
+
+    @Override
+    public boolean translucent() {
+        return type == EnemyType.SPECTRE && alive;
     }
 
     private boolean canStand(World w, double nx, double ny) {
@@ -159,22 +276,22 @@ public class Enemy extends Sprite {
 
     private int sightSound() {
         return switch (type) {
-            case ZOMBIE -> SoundFx.SIGHT_HUMAN;
-            case IMP -> SoundFx.SIGHT_IMP;
-            case DEMON -> SoundFx.SIGHT_DEMON;
-            case CACO -> SoundFx.SIGHT_CACO;
-            case BARON -> SoundFx.SIGHT_DEMON;
+            case ZOMBIE, SHOTGUNNER, CHAINGUNNER, SS -> SoundFx.SIGHT_HUMAN;
+            case IMP, ARCHVILE, REVENANT -> SoundFx.SIGHT_IMP;
+            case DEMON, SPECTRE, MANCUBUS -> SoundFx.SIGHT_DEMON;
+            case CACO, LOST_SOUL, PAIN -> SoundFx.SIGHT_CACO;
+            case BARON, HELL_KNIGHT -> SoundFx.SIGHT_DEMON;
             default -> SoundFx.SIGHT_BOSS;
         };
     }
 
     private int painSound() {
         return switch (type) {
-            case ZOMBIE -> SoundFx.PAIN_HUMAN;
-            case IMP -> SoundFx.PAIN_IMP;
-            case DEMON -> SoundFx.PAIN_DEMON;
-            case CACO -> SoundFx.PAIN_CACO;
-            case BARON -> SoundFx.PAIN_DEMON;
+            case ZOMBIE, SHOTGUNNER, CHAINGUNNER, SS -> SoundFx.PAIN_HUMAN;
+            case IMP, ARCHVILE, REVENANT -> SoundFx.PAIN_IMP;
+            case DEMON, SPECTRE, MANCUBUS -> SoundFx.PAIN_DEMON;
+            case CACO, LOST_SOUL, PAIN -> SoundFx.PAIN_CACO;
+            case BARON, HELL_KNIGHT -> SoundFx.PAIN_DEMON;
             default -> SoundFx.PAIN_BOSS;
         };
     }

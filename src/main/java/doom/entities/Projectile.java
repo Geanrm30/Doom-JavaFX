@@ -6,7 +6,7 @@ import doom.world.World;
 /** Proyectil: bola de fuego enemiga (kind 0) o disparo del jugador (1 cohete, 2 plasma). */
 public class Projectile extends Sprite {
 
-    public final double vx, vy;
+    public double vx, vy;
     public final int damage;
     public final int kind;
     public boolean alive = true;
@@ -23,13 +23,13 @@ public class Projectile extends Sprite {
         this.vy = dirY * speed;
         this.damage = damage;
         this.kind = kind;
-        this.scale = kind == 2 ? 0.2 : kind == 1 ? 0.26 : 0.28;
-        this.lift = kind == 0 ? 0.32 : 0.28;
+        this.scale = kind == 2 ? 0.2 : kind == 1 ? 0.26 : kind == 3 ? 0.3 : 0.28;
+        this.lift = kind == 0 || kind == 3 ? 0.32 : 0.28;
     }
 
     public void update(double dt, World w) {
         age += dt;
-        if (kind == 0) {
+        if (kind == 0 || kind == 3) {
             updateEnemyShot(dt, w);
         } else {
             updatePlayerShot(dt, w);
@@ -37,6 +37,17 @@ public class Projectile extends Sprite {
     }
 
     private void updateEnemyShot(double dt, World w) {
+        if (kind == 3) {
+            // misil teledirigido: gira poco a poco hacia el jugador
+            double sp = Math.hypot(vx, vy), a = Math.atan2(vy, vx);
+            double want = Math.atan2(w.player.y - y, w.player.x - x);
+            double diff = want - a;
+            while (diff > Math.PI) diff -= 2 * Math.PI;
+            while (diff < -Math.PI) diff += 2 * Math.PI;
+            a += Math.max(-1.4 * dt, Math.min(1.4 * dt, diff));
+            vx = Math.cos(a) * sp;
+            vy = Math.sin(a) * sp;
+        }
         double nx = x + vx * dt, ny = y + vy * dt;
         if (w.level.isWall((int) nx, (int) ny) || age > 8) {
             alive = false;
@@ -97,6 +108,9 @@ public class Projectile extends Sprite {
         }
         if (kind == 1) {
             return ColorUtils.rgb((int) (255 * flick), (int) (120 + 135 * t * t), (int) (40 + 190 * t * t * t));
+        }
+        if (kind == 3) {
+            return ColorUtils.rgb((int) (255 * flick), (int) (110 + 120 * t * t), (int) (60 + 150 * t * t * t));
         }
         return ColorUtils.rgb((int) (255 * flick), (int) (60 + 190 * t * t), (int) (30 * t));
     }

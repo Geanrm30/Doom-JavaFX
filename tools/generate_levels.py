@@ -343,8 +343,36 @@ def write(idx, cfg, lv):
         f.write(f"fog={cfg['fog']}\n")
         f.write(f"angle={lv['angle']:.1f}\n")
         f.write("---\n")
-        for row in lv["grid"]:
+        for row in diversify(idx, lv["grid"]):
             f.write("".join(row) + "\n")
+
+
+# Variantes de enemigos que reemplazan a los basicos segun el nivel: (nuevo, nivel minimo, probabilidad)
+VARIANTS = {
+    "z": [("p", 1, 0.20), ("x", 2, 0.15), ("W", 3, 0.15)],
+    "i": [("V", 4, 0.12), ("A", 7, 0.08)],
+    "d": [("t", 4, 0.30)],
+    "c": [("f", 5, 0.30), ("b", 6, 0.18)],
+    "B": [("K", 7, 0.40), ("M", 6, 0.25)],
+}
+
+
+def diversify(idx, grid):
+    """Cambia parte de los enemigos basicos por los demas tipos (no toca el mapa)."""
+    r = random.Random(idx * 7919)
+    out = []
+    for row in grid:
+        chars = []
+        for ch in row:
+            for new, lvl, prob in VARIANTS.get(ch, []):
+                if idx >= lvl and r.random() < prob:
+                    ch = new
+                    break
+            if idx == 9 and ch == "J":
+                ch = "I"
+            chars.append(ch)
+        out.append(chars)
+    return out
 
 
 def main():
