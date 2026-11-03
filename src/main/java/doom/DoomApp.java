@@ -32,6 +32,7 @@ public class DoomApp extends Application {
     private final Renderer renderer = new Renderer(textures);
     private final HudRenderer hudRenderer = new HudRenderer();
     private final InputHandler input = new InputHandler();
+    { input.mouseLook = world.progress.mouseLook; }
 
     @Override
     public void start(Stage stage) {
@@ -52,6 +53,8 @@ public class DoomApp extends Application {
                 if (world.escape()) stage.close();
             } else if (e.getCode() == KeyCode.L) {
                 input.mouseLook = !input.mouseLook;
+                world.progress.mouseLook = input.mouseLook;
+                world.progress.save();
                 haveLast = false;
                 world.notice(input.mouseLook ? "Giro con el raton: SI" : "Giro con el raton: NO");
             } else {
@@ -145,6 +148,11 @@ public class DoomApp extends Application {
                 warping = false;
             }
         }
+    }
+
+    @Override
+    public void stop() {
+        world.progress.save();
     }
 
     public static void main(String[] args) {

@@ -25,10 +25,11 @@ public class World {
     public final List<Barrel> barrels = new ArrayList<>();
     public final List<Effect> effects = new ArrayList<>();
     public final SoundFx sound = new SoundFx();
+    public final Progress progress = Progress.load();
 
     public Level level;
     public GameState state = GameState.TITLE;
-    public final int levelCount = Level.count();
+    public final int levelCount = Math.min(Level.count(), Progress.MAX_LEVELS);
     public int levelIndex = 1, titleLevel = 1;
     public int kills, totalEnemies, items, totalItems;
     public double time;
@@ -40,13 +41,36 @@ public class World {
     public static final String[] DIFFICULTY = {"Facil", "Normal", "Dificil"};
     private static final double[] DAMAGE_MULT = {0.5, 1.0, 1.6};
     /** 0 facil, 1 normal, 2 dificil: cambia el dano que recibes. */
-    public int difficulty = 1;
 
     private final Player levelStart = new Player();
     private final Random rnd = new Random();
 
+    public World() {
+        progress.unlocked = Math.max(1, Math.min(progress.unlocked, Math.max(1, levelCount)));
+        sound.muted = sound.muted || progress.muted;
+        titleLevel = progress.unlocked;
+    }
+
+    public boolean isUnlocked(int level) {
+        return level >= 1 && level <= progress.unlocked;
+    }
+
     // ---------------------------------------------------------------- flujo de niveles
 
+    /** Empieza un nivel desde el menu: solo si esta desbloqueado. */
+    public boolean startLevel(int index) {
+        if (!isUnlocked(index) || index > levelCount) {
+            say("Termina el nivel anterior para desbloquearlo", 2.5);
+            sound.play(SoundFx.DENIED);
+            return false;
+        }
+        if (index == progress.unlocked) progress.applyInventory(player);
+        else player.resetInventory();
+        loadLevel(index);
+        return true;
+    }
+
+    /** Partida nueva con inventario inicial (sin comprobar bloqueo; lo usan las pruebas). */
     public void startGame(int index) {
         player.resetInventory();
         loadLevel(index);
@@ -97,6 +121,13 @@ public class World {
     }
 
     private void finishLevel() {
+        int done = levelIndex;
+        if (progress.bestTime[done] <= 0 || time < progress.bestTime[done]) progress.bestTime[done] = time;
+        if (done + 1 > progress.unlocked && done < levelCount) {
+            progress.unlocked = done + 1;
+            progress.storeInventory(player);
+        }
+        progress.save();
         sound.play(SoundFx.EXIT);
         state = levelIndex >= levelCount ? GameState.WON : GameState.LEVEL_DONE;
     }
@@ -131,13 +162,15 @@ public class World {
     public void keyPressed(KeyCode k) {
         if (k == KeyCode.M) {
             sound.muted = !sound.muted;
+            progress.muted = sound.muted;
+            progress.save();
             return;
         }
         switch (state) {
             case TITLE -> {
-                if (k == KeyCode.ENTER || k == KeyCode.SPACE) startGame(titleLevel);
-                else if (k == KeyCode.UP || k == KeyCode.W) difficulty = Math.min(2, difficulty + 1);
-                else if (k == KeyCode.DOWN || k == KeyCode.S) difficulty = Math.max(0, difficulty - 1);
+                if (k == KeyCode.ENTER || k == KeyCode.SPACE) startLevel(titleLevel);
+                else if (k == KeyCode.UP || k == KeyCode.W) progress.difficulty = Math.min(2, progress.difficulty + 1);
+                else if (k == KeyCode.DOWN || k == KeyCode.S) progress.difficulty = Math.max(0, progress.difficulty - 1);
                 else if (k == KeyCode.RIGHT || k == KeyCode.D) titleLevel = Math.min(levelCount, titleLevel + 1);
                 else if (k == KeyCode.LEFT || k == KeyCode.A) titleLevel = Math.max(1, titleLevel - 1);
             }
@@ -168,7 +201,7 @@ public class World {
             }
             case WON -> {
                 if (k == KeyCode.ENTER) {
-                    titleLevel = 1;
+                    titleLevel = progress.unlocked;
                     state = GameState.TITLE;
                 }
             }
@@ -263,7 +296,7 @@ public class World {
 
     public void hurtPlayer(int amount) {
         if (state != GameState.PLAYING || player.invuln > 0) return;
-        amount = Math.max(1, (int) Math.round(amount * DAMAGE_MULT[difficulty]));
+        amount = Math.max(1, (int) Math.round(amount * DAMAGE_MULT[progress.difficulty]));
         if (player.damage(amount)) {
             state = GameState.DEAD;
             sound.play(SoundFx.DEATH);

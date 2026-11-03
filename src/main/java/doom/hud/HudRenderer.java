@@ -296,10 +296,12 @@ public class HudRenderer {
         gc.setFill(Color.WHITE);
         Level preview = Level.load(world.titleLevel);
         String nm = preview != null ? preview.name : "";
-        gc.fillText("<  Nivel " + world.titleLevel + ": " + nm + "  >", CW / 2, 300);
+        boolean locked = !world.isUnlocked(world.titleLevel);
+        gc.setFill(locked ? Color.rgb(140, 140, 140) : Color.WHITE);
+        gc.fillText("<  Nivel " + world.titleLevel + ": " + nm + (locked ? " (bloqueado)" : "") + "  >", CW / 2, 300);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
         gc.setFill(Color.rgb(230, 200, 90));
-        gc.fillText("Dificultad: " + World.DIFFICULTY[world.difficulty] + "  (ARRIBA/ABAJO)", CW / 2, 335);
+        gc.fillText("Dificultad: " + World.DIFFICULTY[world.progress.difficulty] + "  (ARRIBA/ABAJO)", CW / 2, 335);
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 22));
         gc.setFill(Color.rgb(200, 200, 200));
         gc.fillText("ENTER: empezar    IZQ/DER: elegir nivel    ESC: salir", CW / 2, 372);

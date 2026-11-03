@@ -41,6 +41,14 @@ reintenta el nivel actual.
 
 El juego se pausa solo si la ventana pierde el foco.
 
+## Progreso
+
+Cada nivel se desbloquea al terminar el anterior. El progreso (niveles desbloqueados,
+mejores tiempos, arma y municion con la que sigues, y tus ajustes) se guarda solo al
+terminar un nivel y al cerrar el juego, en `~/.doom-javafx/progreso.properties`
+(en Windows, `C:\Users\TU_USUARIO\.doom-javafx\progreso.properties`). Si lo borras, empiezas de cero.
+No se guarda la posicion dentro de un nivel a medias.
+
 ## Niveles
 
 Hay 9 niveles que van subiendo de dificultad:
