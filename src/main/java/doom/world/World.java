@@ -30,13 +30,27 @@ public class World {
     public Level level;
     public GameState state = GameState.TITLE;
     public final int levelCount = Math.min(Level.count(), Progress.MAX_LEVELS);
-    public int levelIndex = 1, titleLevel = 1;
+    public int levelIndex = 1;
     public int kills, totalEnemies, items, totalItems;
     public double time;
     public String message = "";
     public double messageTimer;
     public boolean showMap = true;
     public boolean paused;
+
+    // ---- menus
+    public enum Screen { MAIN, LEVELS, OPTIONS, PAUSE }
+
+    public record Row(String label, String value, boolean enabled) {}
+
+    public Screen screen = Screen.MAIN;
+    public int menuIndex;
+    private Screen optionsFrom = Screen.MAIN;
+    private boolean confirmReset;
+    private String[] levelNames;
+    /** La ventana lo conecta para cerrar el juego y para cambiar la pantalla completa. */
+    public Runnable onQuit = () -> { };
+    public java.util.function.Consumer<Boolean> onFullscreen = b -> { };
 
     public static final String[] DIFFICULTY = {"Facil", "Normal", "Dificil"};
     private static final double[] DAMAGE_MULT = {0.5, 1.0, 1.6};
@@ -48,7 +62,6 @@ public class World {
     public World() {
         progress.unlocked = Math.max(1, Math.min(progress.unlocked, Math.max(1, levelCount)));
         sound.muted = sound.muted || progress.muted;
-        titleLevel = progress.unlocked;
     }
 
     public boolean isUnlocked(int level) {
@@ -137,19 +150,205 @@ public class World {
         say(msg, 2.0);
     }
 
-    /** ESC: pausa durante el juego, vuelve al titulo desde las pantallas finales. @return true si hay que cerrar el juego */
-    public boolean escape() {
+    /** Menu activo: titulo o pausa. */
+    public boolean inMenu() {
+        return state == GameState.TITLE || (state == GameState.PLAYING && paused);
+    }
+
+    public void pause() {
+        if (state == GameState.PLAYING && !paused) {
+            paused = true;
+            screen = Screen.PAUSE;
+            menuIndex = 0;
+            confirmReset = false;
+        }
+    }
+
+    private void toTitle() {
+        paused = false;
+        state = GameState.TITLE;
+        screen = Screen.MAIN;
+        menuIndex = 0;
+        confirmReset = false;
+        progress.save();
+    }
+
+    /** ESC: pausa durante el juego, vuelve atras en los menus y al titulo desde las pantallas finales. */
+    public void escape() {
         switch (state) {
-            case TITLE -> {
-                return true;
+            case TITLE -> menuBack();
+            case PLAYING -> {
+                if (paused) menuBack();
+                else pause();
             }
-            case PLAYING -> paused = !paused;
-            default -> {
-                paused = false;
-                state = GameState.TITLE;
+            default -> toTitle();
+        }
+    }
+
+    // ---------------------------------------------------------------- logica de menus
+
+    private static String fmtTime(double t) {
+        int s = (int) t;
+        return String.format("%d:%02d", s / 60, s % 60);
+    }
+
+    private String levelName(int i) {
+        if (levelNames == null) {
+            levelNames = new String[levelCount + 1];
+            for (int k = 1; k <= levelCount; k++) levelNames[k] = Level.nameOf(k);
+        }
+        return levelNames[i];
+    }
+
+    public String menuHeader() {
+        return switch (screen) {
+            case MAIN -> "";
+            case LEVELS -> "SELECCIONAR NIVEL";
+            case OPTIONS -> "OPCIONES";
+            case PAUSE -> "PAUSA";
+        };
+    }
+
+    public List<Row> menuRows() {
+        List<Row> r = new ArrayList<>();
+        switch (screen) {
+            case MAIN -> {
+                boolean fresh = progress.unlocked <= 1 && progress.bestTime[1] <= 0;
+                r.add(new Row(fresh ? "JUGAR" : "CONTINUAR", fresh ? "" : "Nivel " + progress.unlocked, true));
+                r.add(new Row("SELECCIONAR NIVEL", "", true));
+                r.add(new Row("DIFICULTAD", DIFFICULTY[progress.difficulty], true));
+                r.add(new Row("OPCIONES", "", true));
+                r.add(new Row("SALIR", "", true));
+            }
+            case LEVELS -> {
+                for (int i = 1; i <= levelCount; i++) {
+                    boolean open = isUnlocked(i);
+                    String v = !open ? "BLOQUEADO" : progress.bestTime[i] > 0 ? "MEJOR " + fmtTime(progress.bestTime[i]) : "";
+                    r.add(new Row(i + ". " + levelName(i), v, open));
+                }
+                r.add(new Row("VOLVER", "", true));
+            }
+            case OPTIONS -> {
+                r.add(new Row("SENSIBILIDAD DEL RATON", progress.sensitivity + " / 10", true));
+                r.add(new Row("GIRO CON EL RATON", progress.mouseLook ? "SI" : "NO", true));
+                r.add(new Row("SONIDO", sound.muted ? "NO" : "SI", true));
+                r.add(new Row("PANTALLA COMPLETA", progress.fullscreen ? "SI" : "NO", true));
+                r.add(new Row(confirmReset ? "SEGURO? PULSA ENTER OTRA VEZ" : "BORRAR PROGRESO", "", true));
+                r.add(new Row("VOLVER", "", true));
+            }
+            case PAUSE -> {
+                r.add(new Row("CONTINUAR", "", true));
+                r.add(new Row("OPCIONES", "", true));
+                r.add(new Row("VOLVER AL TITULO", "", true));
+                r.add(new Row("SALIR DEL JUEGO", "", true));
             }
         }
-        return false;
+        return r;
+    }
+
+    private void menuKey(KeyCode k) {
+        switch (k) {
+            case UP, W -> menuMove(-1);
+            case DOWN, S -> menuMove(1);
+            case LEFT, A -> menuAdjust(-1);
+            case RIGHT, D -> menuAdjust(1);
+            case ENTER, SPACE -> menuActivate();
+            case BACK_SPACE -> menuBack();
+            default -> { }
+        }
+    }
+
+    public void menuMove(int dir) {
+        int n = menuRows().size();
+        menuIndex = (menuIndex + dir + n) % n;
+        confirmReset = false;
+    }
+
+    public void menuSelect(int index) {
+        if (index >= 0 && index < menuRows().size() && index != menuIndex) {
+            menuIndex = index;
+            confirmReset = false;
+        }
+    }
+
+    public void menuBack() {
+        confirmReset = false;
+        switch (screen) {
+            case MAIN -> { }
+            case LEVELS -> { screen = Screen.MAIN; menuIndex = 1; }
+            case OPTIONS -> {
+                screen = optionsFrom;
+                menuIndex = optionsFrom == Screen.PAUSE ? 1 : 3;
+                progress.save();
+            }
+            case PAUSE -> paused = false;
+        }
+    }
+
+    /** Izquierda/derecha sobre filas con valor (dificultad, sensibilidad, interruptores). */
+    public void menuAdjust(int dir) {
+        confirmReset = false;
+        if (screen == Screen.MAIN && menuIndex == 2) {
+            progress.difficulty = Math.max(0, Math.min(2, progress.difficulty + dir));
+            progress.save();
+        } else if (screen == Screen.OPTIONS) {
+            switch (menuIndex) {
+                case 0 -> progress.sensitivity = Math.max(1, Math.min(10, progress.sensitivity + dir));
+                case 1 -> progress.mouseLook = !progress.mouseLook;
+                case 2 -> { sound.muted = !sound.muted; progress.muted = sound.muted; }
+                case 3 -> setFullscreen(!progress.fullscreen);
+                default -> { return; }
+            }
+            progress.save();
+        }
+    }
+
+    public void setFullscreen(boolean on) {
+        progress.fullscreen = on;
+        onFullscreen.accept(on);
+    }
+
+    public void menuActivate() {
+        switch (screen) {
+            case MAIN -> {
+                switch (menuIndex) {
+                    case 0 -> startLevel(progress.unlocked);
+                    case 1 -> { screen = Screen.LEVELS; menuIndex = progress.unlocked - 1; }
+                    case 2 -> menuAdjust(progress.difficulty >= 2 ? -2 : 1);
+                    case 3 -> { optionsFrom = Screen.MAIN; screen = Screen.OPTIONS; menuIndex = 0; }
+                    default -> { progress.save(); onQuit.run(); }
+                }
+            }
+            case LEVELS -> {
+                if (menuIndex >= levelCount) menuBack();
+                else startLevel(menuIndex + 1);
+            }
+            case OPTIONS -> {
+                switch (menuIndex) {
+                    case 0 -> menuAdjust(1);
+                    case 1, 2, 3 -> menuAdjust(1);
+                    case 4 -> {
+                        if (confirmReset) {
+                            progress.resetProgress();
+                            progress.save();
+                            confirmReset = false;
+                            say("Progreso borrado", 2.0);
+                        } else {
+                            confirmReset = true;
+                        }
+                    }
+                    default -> menuBack();
+                }
+            }
+            case PAUSE -> {
+                switch (menuIndex) {
+                    case 0 -> paused = false;
+                    case 1 -> { optionsFrom = Screen.PAUSE; screen = Screen.OPTIONS; menuIndex = 0; }
+                    case 2 -> toTitle();
+                    default -> { progress.save(); onQuit.run(); }
+                }
+            }
+        }
     }
 
     private void say(String msg, double secs) {
@@ -167,26 +366,17 @@ public class World {
             return;
         }
         switch (state) {
-            case TITLE -> {
-                if (k == KeyCode.ENTER || k == KeyCode.SPACE) startLevel(titleLevel);
-                else if (k == KeyCode.UP || k == KeyCode.W) progress.difficulty = Math.min(2, progress.difficulty + 1);
-                else if (k == KeyCode.DOWN || k == KeyCode.S) progress.difficulty = Math.max(0, progress.difficulty - 1);
-                else if (k == KeyCode.RIGHT || k == KeyCode.D) titleLevel = Math.min(levelCount, titleLevel + 1);
-                else if (k == KeyCode.LEFT || k == KeyCode.A) titleLevel = Math.max(1, titleLevel - 1);
-            }
+            case TITLE -> menuKey(k);
             case PLAYING -> {
                 if (paused) {
-                    if (k == KeyCode.P || k == KeyCode.ENTER) paused = false;
-                    else if (k == KeyCode.T) {
-                        paused = false;
-                        state = GameState.TITLE;
-                    }
+                    if (k == KeyCode.P) paused = false;
+                    else menuKey(k);
                     return;
                 }
                 switch (k) {
                     case F, ENTER -> use();
                     case TAB -> showMap = !showMap;
-                    case P -> paused = !paused;
+                    case P -> pause();
                     case DIGIT1, NUMPAD1 -> selectWeapon(0);
                     case DIGIT2, NUMPAD2 -> selectWeapon(1);
                     case DIGIT3, NUMPAD3 -> selectWeapon(2);
@@ -200,10 +390,7 @@ public class World {
                 if (k == KeyCode.ENTER || k == KeyCode.SPACE) loadLevel(levelIndex + 1);
             }
             case WON -> {
-                if (k == KeyCode.ENTER) {
-                    titleLevel = progress.unlocked;
-                    state = GameState.TITLE;
-                }
+                if (k == KeyCode.ENTER) toTitle();
             }
         }
     }

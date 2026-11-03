@@ -42,6 +42,21 @@ public final class Level {
         return n;
     }
 
+    /** Lee solo el nombre del nivel (cabecera), sin cargar el mapa. */
+    public static String nameOf(int index) {
+        try (InputStream in = Level.class.getResourceAsStream("/levels/level" + index + ".txt")) {
+            if (in == null) return "Nivel " + index;
+            BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+            String line;
+            while ((line = br.readLine()) != null && !line.trim().equals("---")) {
+                if (line.startsWith("name=")) return line.substring(5).trim();
+            }
+        } catch (IOException e) {
+            // se usa el nombre por defecto
+        }
+        return "Nivel " + index;
+    }
+
     public static Level load(int index) {
         try (InputStream in = Level.class.getResourceAsStream("/levels/level" + index + ".txt")) {
             if (in == null) return null;

@@ -25,6 +25,7 @@ public class HudRenderer {
 
         if (st == GameState.TITLE) {
             drawTitle(gc, world);
+            drawMessage(gc, world);
             return;
         }
 
@@ -49,7 +50,8 @@ public class HudRenderer {
         drawMessage(gc, world);
         drawBossBar(gc, world);
         if (world.paused && st == GameState.PLAYING) {
-            drawBanner(gc, "PAUSA", Color.rgb(230, 200, 90), "ESC: continuar    T: volver al titulo");
+            drawPause(gc, world);
+            drawMessage(gc, world);
         }
 
         switch (st) {
@@ -250,6 +252,8 @@ public class HudRenderer {
     private void drawIntermission(GraphicsContext gc, World world, boolean last) {
         gc.setFill(Color.rgb(0, 0, 0, 0.82));
         gc.fillRect(0, 0, CW, CH);
+        gc.setFill(Color.BLACK);
+        gc.fillRect(0, CH - 56, CW, 56);
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 44));
         gc.setFill(Color.rgb(120, 230, 120));
@@ -275,6 +279,79 @@ public class HudRenderer {
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
+    // ------------------------------------------------------------------ menus
+
+    private static final double MENU_W = 640;
+
+    /** {top, filaAlto, primeraVisible, maxVisibles} segun la pantalla del menu. */
+    private double[] layout(World world, int n) {
+        double top, rowH;
+        int visible = n;
+        switch (world.screen) {
+            case MAIN -> { top = 262; rowH = 42; }
+            case LEVELS -> { top = 128; rowH = 40; visible = Math.min(n, 10); }
+            default -> { top = 196; rowH = 48; }
+        }
+        int first = Math.max(0, Math.min(world.menuIndex - visible + 1, n - visible));
+        if (world.menuIndex < first) first = world.menuIndex;
+        return new double[]{top, rowH, first, visible};
+    }
+
+    /** Fila del menu bajo la posicion (en coordenadas virtuales 960x600), o -1. */
+    public int rowAt(World world, double vx, double vy) {
+        if (Math.abs(vx - CW / 2) > MENU_W / 2) return -1;
+        double[] l = layout(world, world.menuRows().size());
+        int i = (int) Math.floor((vy - l[0]) / l[1]);
+        if (vy < l[0] || i < 0 || i >= (int) l[3]) return -1;
+        return (int) l[2] + i;
+    }
+
+    private void drawMenu(GraphicsContext gc, World world) {
+        java.util.List<World.Row> rows = world.menuRows();
+        double[] l = layout(world, rows.size());
+        double x0 = CW / 2 - MENU_W / 2;
+        for (int i = 0; i < (int) l[3]; i++) {
+            int idx = (int) l[2] + i;
+            World.Row row = rows.get(idx);
+            double y = l[0] + i * l[1];
+            boolean sel = idx == world.menuIndex;
+            if (sel) {
+                gc.setFill(Color.rgb(120, 14, 10, 0.85));
+                gc.fillRect(x0, y, MENU_W, l[1] - 6);
+                gc.setStroke(Color.rgb(230, 200, 90));
+                gc.setLineWidth(1);
+                gc.strokeRect(x0 + 0.5, y + 0.5, MENU_W - 1, l[1] - 7);
+            }
+            Color text = !row.enabled() ? Color.rgb(110, 110, 110)
+                    : sel ? Color.rgb(255, 235, 130) : Color.rgb(215, 215, 215);
+            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
+            gc.setTextAlign(TextAlignment.LEFT);
+            gc.setFill(text);
+            gc.fillText((sel ? "> " : "  ") + row.label(), x0 + 16, y + l[1] / 2 + 4);
+            if (!row.value().isEmpty()) {
+                gc.setTextAlign(TextAlignment.RIGHT);
+                boolean adjustable = (world.screen == World.Screen.MAIN && idx == 2)
+                        || (world.screen == World.Screen.OPTIONS && idx <= 3);
+                String v = sel && adjustable ? "<  " + row.value() + "  >" : row.value();
+                gc.setFill(row.enabled() ? (sel ? Color.rgb(255, 235, 130) : Color.rgb(230, 200, 90))
+                        : Color.rgb(150, 70, 60));
+                gc.fillText(v, x0 + MENU_W - 16, y + l[1] / 2 + 4);
+            }
+        }
+        if (rows.size() > (int) l[3]) {
+            gc.setTextAlign(TextAlignment.CENTER);
+            gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 14));
+            gc.setFill(Color.rgb(150, 150, 150));
+            if (l[2] > 0) gc.fillText("(mas arriba)", CW / 2, l[0] - 8);
+            if (l[2] + l[3] < rows.size()) gc.fillText("(mas abajo)", CW / 2, l[0] + l[3] * l[1] + 6);
+        }
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 15));
+        gc.setFill(Color.rgb(150, 150, 150));
+        gc.fillText("ARRIBA/ABAJO mover    ENTER elegir    IZQ/DER cambiar    ESC volver", CW / 2, CH - 16);
+        gc.setTextAlign(TextAlignment.LEFT);
+    }
+
     private void drawTitle(GraphicsContext gc, World world) {
         gc.setFill(Color.rgb(10, 0, 0));
         gc.fillRect(0, 0, CW, CH);
@@ -283,37 +360,51 @@ public class HudRenderer {
             gc.fillRect(0, CH - 40 - i * 14, CW, 14);
         }
         gc.setTextAlign(TextAlignment.CENTER);
-        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 96));
-        gc.setFill(Color.rgb(20, 0, 0));
-        gc.fillText("DOOM", CW / 2 + 5, 175);
-        gc.setFill(Color.rgb(210, 40, 20));
-        gc.fillText("DOOM", CW / 2, 170);
-        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 24));
-        gc.setFill(Color.rgb(230, 200, 90));
-        gc.fillText("JAVAFX RAYCASTER  -  " + world.levelCount + " NIVELES", CW / 2, 215);
-
-        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 28));
-        gc.setFill(Color.WHITE);
-        Level preview = Level.load(world.titleLevel);
-        String nm = preview != null ? preview.name : "";
-        boolean locked = !world.isUnlocked(world.titleLevel);
-        gc.setFill(locked ? Color.rgb(140, 140, 140) : Color.WHITE);
-        gc.fillText("<  Nivel " + world.titleLevel + ": " + nm + (locked ? " (bloqueado)" : "") + "  >", CW / 2, 300);
-        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
-        gc.setFill(Color.rgb(230, 200, 90));
-        gc.fillText("Dificultad: " + World.DIFFICULTY[world.progress.difficulty] + "  (ARRIBA/ABAJO)", CW / 2, 335);
-        gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 22));
-        gc.setFill(Color.rgb(200, 200, 200));
-        gc.fillText("ENTER: empezar    IZQ/DER: elegir nivel    ESC: salir", CW / 2, 372);
-
-        gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 17));
-        gc.setFill(Color.rgb(150, 150, 150));
-        String[] help = {
-            "W A S D mover   Q E / flechas girar   SHIFT correr",
-            "ESPACIO o CTRL disparar   F o ENTER usar (puertas, salida)",
-            "1 2 3 armas   TAB minimapa   P pausa   M sonido"
-        };
-        for (int i = 0; i < help.length; i++) gc.fillText(help[i], CW / 2, 430 + i * 26);
+        if (world.screen == World.Screen.MAIN) {
+            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 84));
+            gc.setFill(Color.rgb(20, 0, 0));
+            gc.fillText("DOOM", CW / 2 + 5, 135);
+            gc.setFill(Color.rgb(210, 40, 20));
+            gc.fillText("DOOM", CW / 2, 130);
+            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
+            gc.setFill(Color.rgb(230, 200, 90));
+            gc.fillText("JAVAFX RAYCASTER", CW / 2, 168);
+            int done = Math.min(world.progress.unlocked - 1, world.levelCount);
+            gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 17));
+            gc.setFill(Color.rgb(190, 190, 190));
+            gc.fillText("Niveles completados: " + done + " / " + world.levelCount
+                    + "    Desbloqueado: " + world.progress.unlocked, CW / 2, 205);
+            gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 15));
+            gc.setFill(Color.rgb(140, 140, 140));
+            String[] help = {
+                "W A S D mover   raton o Q E girar   SHIFT correr   clic o ESPACIO disparar",
+                "F o ENTER usar   1 2 3 o rueda armas   TAB minimapa   P o ESC pausa   F11 pantalla"
+            };
+            for (int i = 0; i < help.length; i++) gc.fillText(help[i], CW / 2, 500 + i * 22);
+        } else {
+            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 38));
+            gc.setFill(Color.rgb(210, 40, 20));
+            gc.fillText(world.menuHeader(), CW / 2, 82);
+        }
         gc.setTextAlign(TextAlignment.LEFT);
+        drawMenu(gc, world);
+    }
+
+    private void drawPause(GraphicsContext gc, World world) {
+        gc.setFill(Color.rgb(0, 0, 0, 0.72));
+        gc.fillRect(0, 0, CW, CH);
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 44));
+        gc.setFill(Color.rgb(230, 200, 90));
+        gc.fillText(world.screen == World.Screen.OPTIONS ? "OPCIONES" : "PAUSA", CW / 2, 100);
+        if (world.screen == World.Screen.PAUSE) {
+            int secs = (int) world.time;
+            gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 18));
+            gc.setFill(Color.rgb(190, 190, 190));
+            gc.fillText(String.format("Nivel %d: %s    %d:%02d    enemigos %d/%d", world.levelIndex,
+                    world.level.name, secs / 60, secs % 60, world.kills, world.totalEnemies), CW / 2, 140);
+        }
+        gc.setTextAlign(TextAlignment.LEFT);
+        drawMenu(gc, world);
     }
 }

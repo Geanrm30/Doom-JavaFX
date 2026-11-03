@@ -50,7 +50,7 @@ public class DoomApp extends Application {
         scene.setOnKeyPressed(e -> {
             input.keyPressed(e.getCode());
             if (e.getCode() == KeyCode.ESCAPE) {
-                if (world.escape()) stage.close();
+                world.escape();
             } else if (e.getCode() == KeyCode.L) {
                 input.mouseLook = !input.mouseLook;
                 world.progress.mouseLook = input.mouseLook;
@@ -69,11 +69,28 @@ public class DoomApp extends Application {
         } catch (Throwable t) {
             robot = null; // sin Robot el giro funciona igual, pero el cursor puede salir de la ventana
         }
-        scene.setOnMouseMoved(e -> onMouse(stage, scene, e));
+        world.onQuit = stage::close;
+        scene.setOnMouseMoved(e -> {
+            if (world.inMenu()) {
+                int row = hudRenderer.rowAt(world, e.getX(), e.getY());
+                if (row >= 0) world.menuSelect(row);
+            }
+            onMouse(stage, scene, e);
+        });
         scene.setOnMouseDragged(e -> onMouse(stage, scene, e));
         scene.setOnMousePressed(e -> {
-            if (e.getButton() == MouseButton.PRIMARY) {
-                if (world.state == GameState.PLAYING && !world.paused) input.mouseFire = true;
+            if (world.inMenu()) {
+                if (e.getButton() == MouseButton.PRIMARY) {
+                    int row = hudRenderer.rowAt(world, e.getX(), e.getY());
+                    if (row >= 0) {
+                        world.menuSelect(row);
+                        world.menuActivate();
+                    }
+                } else if (e.getButton() == MouseButton.SECONDARY) {
+                    world.menuBack();
+                }
+            } else if (e.getButton() == MouseButton.PRIMARY) {
+                if (world.state == GameState.PLAYING) input.mouseFire = true;
                 else world.keyPressed(KeyCode.ENTER);
             } else if (e.getButton() == MouseButton.SECONDARY) {
                 world.keyPressed(KeyCode.F);
@@ -83,12 +100,14 @@ public class DoomApp extends Application {
             if (e.getButton() == MouseButton.PRIMARY) input.mouseFire = false;
         });
         scene.setOnScroll(e -> {
-            if (e.getDeltaY() != 0) world.cycleWeapon(e.getDeltaY() > 0 ? 1 : -1);
+            if (e.getDeltaY() == 0) return;
+            if (world.inMenu()) world.menuMove(e.getDeltaY() > 0 ? -1 : 1);
+            else world.cycleWeapon(e.getDeltaY() > 0 ? 1 : -1);
         });
         stage.focusedProperty().addListener((obs, was, now) -> {
             if (!now) {
                 input.releaseAll();
-                if (world.state == GameState.PLAYING) world.paused = true;
+                world.pause();
             }
             haveLast = false;
         });

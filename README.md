@@ -32,12 +32,17 @@ En Windows: `mvnw.cmd javafx:run`. Desde IntelliJ, ejecuta la clase `doom.Launch
 | 1 2 3 | Cambiar de arma |
 | TAB | Mostrar u ocultar el minimapa |
 | M | Silenciar o activar el sonido |
-| ESC o P | Pausa (con el juego en pausa, T vuelve al titulo) |
-| ESC | En el titulo cierra el juego; en las pantallas de muerte y estadisticas vuelve al titulo |
+| ESC o P | Pausa. El menu de pausa permite continuar, cambiar opciones, volver al titulo o salir |
+| ESC | En los menus vuelve atras; en las pantallas de muerte y estadisticas vuelve al titulo |
 
-En la pantalla de titulo, izquierda y derecha eligen el nivel inicial y arriba y abajo la
-dificultad (Facil: la mitad de dano, Normal, Dificil: 60% mas de dano). Al morir, ENTER
-reintenta el nivel actual.
+Los menus se manejan con las flechas (o W y S), ENTER para elegir e izquierda y derecha para
+cambiar valores. Tambien funcionan con el raton: pasar el cursor, clic para elegir, clic
+derecho para volver y la rueda para moverse.
+
+- **Menu principal:** Jugar o Continuar (el nivel desbloqueado mas alto), Seleccionar nivel,
+  Dificultad (Facil: la mitad de dano, Normal, Dificil: 60% mas de dano), Opciones y Salir.
+- **Opciones:** sensibilidad del raton, giro con el raton, sonido, pantalla completa y borrar progreso.
+- Al morir, ENTER reintenta el nivel actual.
 
 El juego se pausa solo si la ventana pierde el foco.
 
