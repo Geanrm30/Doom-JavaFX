@@ -16,6 +16,8 @@ public class Enemy extends Sprite {
     public boolean alive = true;
     public boolean awake = false;
     public double hurt, cooldown;
+    /** Animacion: fase de caminata, tiempo de ataque restante y tiempo desde la muerte. */
+    private double walkPhase, attackAnim, deathTime;
 
     public Enemy(EnemyType type, double x, double y) {
         this.type = type;
@@ -35,16 +37,21 @@ public class Enemy extends Sprite {
         awake = true;
         if (hp <= 0) {
             alive = false;
+            lift = 0;
             return true;
         }
         return false;
     }
 
     public void update(double dt, World w) {
-        if (!alive) return;
+        if (!alive) {
+            deathTime += dt;
+            return;
+        }
         Player p = w.player;
         if (hurt > 0) hurt -= dt;
         if (cooldown > 0) cooldown -= dt;
+        if (attackAnim > 0) attackAnim -= dt;
 
         double dx = p.x - x, dy = p.y - y;
         double dist = Math.hypot(dx, dy);
@@ -62,14 +69,17 @@ public class Enemy extends Sprite {
             double sp = type.speed * dt;
             double nx = x + dx / dist * sp;
             double ny = y + dy / dist * sp;
+            double ox = x, oy = y;
             if (canStand(w, nx, y)) x = nx;
             if (canStand(w, x, ny)) y = ny;
+            walkPhase += Math.hypot(x - ox, y - oy) * 2.2;
         }
 
         if (cooldown > 0) return;
         if (type.meleeDmg > 0 && dist < 1.3) {
             w.hurtPlayer(type.meleeDmg);
             cooldown = type.meleeCd;
+            attackAnim = 0.35;
         } else if (type.ranged != EnemyType.Ranged.NONE && los && dist < 13) {
             if (type.ranged == EnemyType.Ranged.HITSCAN) {
                 w.sound.play(SoundFx.ZOMBIE_SHOT);
@@ -87,6 +97,7 @@ public class Enemy extends Sprite {
                 }
             }
             cooldown = type.rangedCd * (0.8 + RND.nextDouble() * 0.5);
+            attackAnim = 0.4;
         }
     }
 
@@ -102,77 +113,23 @@ public class Enemy extends Sprite {
         return true;
     }
 
+    private int frame() {
+        if (!alive) {
+            return deathTime < 0.18 ? EnemySprites.DIE1 : deathTime < 0.38 ? EnemySprites.DIE2 : EnemySprites.CORPSE;
+        }
+        if (attackAnim > 0) return EnemySprites.ATTACK;
+        if (!awake) return EnemySprites.STAND;
+        int step = (int) walkPhase % 2;
+        return walkPhase < 0.01 ? EnemySprites.STAND : step == 0 ? EnemySprites.WALK1 : EnemySprites.WALK2;
+    }
+
     @Override
     public int colorAt(double u, double v) {
-        if (!alive) {
-            if (v > 0.86 && Math.abs(u - 0.5) < 0.38) {
-                return type == EnemyType.BARON || type == EnemyType.BOSS_BARON ? ColorUtils.rgb(20, 90, 20) : ColorUtils.rgb(110, 10, 10);
-            }
-            return 0;
+        int c = EnemySprites.pixel(type, frame(), u, v);
+        if (c != 0 && hurt > 0 && alive) {
+            int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
+            return ColorUtils.rgb(Math.min(255, r + 110), Math.min(255, g + 70), Math.min(255, b + 70));
         }
-        return type == EnemyType.CACO ? cacodemon(u, v) : humanoid(u, v);
-    }
-
-    private int tint(int base, int sub) {
-        boolean flash = hurt > 0;
-        int r = (base >> 16) & 0xFF, g = (base >> 8) & 0xFF, b = base & 0xFF;
-        if (flash) return ColorUtils.rgb(255, 220, 220);
-        return ColorUtils.rgb(r - sub, g - sub, b - sub);
-    }
-
-    private int cacodemon(double u, double v) {
-        double cx = u - 0.5, cy = v - 0.5;
-        double d = Math.sqrt(cx * cx + cy * cy);
-        if (d > 0.46) {
-            // pequenos cuernos
-            if (v < 0.12 && Math.abs(Math.abs(cx) - 0.2) < 0.04) return tint(type.body, 90);
-            return 0;
-        }
-        double ex = cx, ey = cy + 0.02;
-        double ed = Math.sqrt(ex * ex + ey * ey);
-        if (ed < 0.16) {
-            if (ed < 0.04) return ColorUtils.rgb(10, 10, 10);
-            if (ed < 0.09) return hurt > 0 ? ColorUtils.rgb(255, 255, 255) : ColorUtils.rgb(70, 200, 70);
-            return ColorUtils.rgb(240, 235, 220);
-        }
-        if (cy > 0.12 && Math.abs(cx) < 0.28 && cy < 0.12 + 0.2 * (1 - Math.abs(cx) / 0.28)) {
-            boolean teeth = ((int) ((cx + 0.5) * 40)) % 4 == 0;
-            return teeth ? ColorUtils.rgb(235, 230, 210) : ColorUtils.rgb(50, 5, 5);
-        }
-        int sub = (int) (60 * (d / 0.46) * (d / 0.46)) + (cy > 0.2 ? 30 : 0);
-        return tint(type.body, sub);
-    }
-
-    private int humanoid(double u, double v) {
-        double bulk = type.bulk;
-        int skin = type.body, head = type.head;
-        double cx = u - 0.5;
-        double ax = Math.abs(cx);
-
-        if (type.horns && v > 0.03 && v < 0.11 && ax > 0.08 && ax < 0.15) return ColorUtils.rgb(225, 215, 190);
-        double hx = cx, hy = v - 0.2;
-        if (hx * hx + hy * hy < 0.13 * 0.13) {
-            double ex = ax - 0.05, ey = v - 0.18;
-            if (ex * ex + ey * ey < 0.028 * 0.028) {
-                return type == EnemyType.ZOMBIE ? ColorUtils.rgb(30, 30, 30) : ColorUtils.rgb(255, 230, 40);
-            }
-            if (v > 0.245 && v < 0.275 && ax < 0.06) return ColorUtils.rgb(40, 5, 5);
-            if (type == EnemyType.ZOMBIE && v < 0.12) return ColorUtils.rgb(80, 80, 70); // casco
-            return tint(head, 0);
-        }
-        if (v > 0.33 && v < 0.65 && ax < 0.16 * bulk) {
-            boolean rib = ((int) (v * 60)) % 4 == 0;
-            return tint(skin, rib ? 50 : 0);
-        }
-        if (v > 0.34 && v < 0.6 && ax >= 0.16 * bulk && ax < 0.24 * bulk) return tint(skin, 35);
-        if (v >= 0.6 && v < 0.67 && ax >= 0.17 * bulk && ax < 0.23 * bulk) {
-            if (type == EnemyType.ZOMBIE) {
-                // fusil
-                return ColorUtils.rgb(60, 60, 65);
-            }
-            return ColorUtils.rgb(235, 230, 210);
-        }
-        if (v >= 0.65 && v < 0.97 && ax > 0.03 && ax < 0.15 * Math.min(bulk, 1.2)) return tint(skin, 70);
-        return 0;
+        return c;
     }
 }
