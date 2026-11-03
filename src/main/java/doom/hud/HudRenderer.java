@@ -63,8 +63,8 @@ public class HudRenderer {
     // ------------------------------------------------------------------ armas
 
     private void drawWeapon(GraphicsContext gc, Player p) {
-        double cx = CW / 2;
-        double off = p.recoil * 28;
+        double cx = CW / 2 + Math.sin(p.bobPhase) * p.bobAmp * 12;
+        double off = p.recoil * 28 + Math.abs(Math.cos(p.bobPhase)) * p.bobAmp * 7;
         double by = CH - 60;
         Weapon w = p.weapon;
 

@@ -10,7 +10,7 @@ public class Player {
     public final boolean[] has = {true, false, false};
     public Weapon weapon = Weapon.PISTOL;
     public boolean redKey, blueKey;
-    public double invuln;
+    public double invuln, bobPhase, bobAmp;
     public double fireCooldown, recoil, muzzle, dmgFlash, pickFlash;
 
     /** Inventario inicial de una partida nueva. */

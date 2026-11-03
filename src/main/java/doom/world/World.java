@@ -238,6 +238,8 @@ public class World {
             p.tryMove(level, mx * sp, my * sp);
             level.reveal(p.x, p.y);
         }
+        p.bobAmp += ((len > 0 ? 1 : 0) - p.bobAmp) * Math.min(1, dt * 8);
+        if (len > 0) p.bobPhase += dt * (run ? 12 : 9);
 
         if ((mouseFire || keys.contains(KeyCode.SPACE) || keys.contains(KeyCode.CONTROL)) && p.fireCooldown <= 0) {
             tryFire();
