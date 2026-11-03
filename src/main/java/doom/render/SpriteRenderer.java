@@ -16,6 +16,9 @@ public class SpriteRenderer {
                        double dirX, double dirY, double planeX, double planeY) {
         List<Sprite> all = new ArrayList<>(world.pickups);
         all.addAll(world.enemies);
+        all.addAll(world.projectiles);
+        for (var b : world.barrels) if (b.alive) all.add(b);
+        all.addAll(world.effects);
         all.sort(Comparator.comparingDouble((Sprite s) ->
                 -((s.x - player.x) * (s.x - player.x) + (s.y - player.y) * (s.y - player.y))));
 
@@ -32,14 +35,15 @@ public class SpriteRenderer {
             int fullH = (int) Math.abs(H / ty);
             int sprH = (int) (fullH * s.scale);
             int floorY = H / 2 + fullH / 2;
-            int startY = floorY - sprH;
+            int startY = floorY - sprH - (int) (fullH * s.lift);
+            int endY = startY + sprH;
             int startX = screenX - sprH / 2;
-            double light = Math.max(0.2, Math.min(1.0, 1.0 / (1.0 + ty * 0.2)));
+            double light = Math.max(0.25, Math.min(1.0, 1.0 / (1.0 + ty * world.level.fog * 0.9)));
 
             for (int sx = Math.max(0, startX); sx < Math.min(W, startX + sprH); sx++) {
                 if (ty >= zBuf[sx]) continue;
                 double u = (double) (sx - startX) / sprH;
-                for (int sy = Math.max(0, startY); sy < Math.min(H, floorY); sy++) {
+                for (int sy = Math.max(0, startY); sy < Math.min(H, endY); sy++) {
                     double v = (double) (sy - startY) / sprH;
                     int color = s.colorAt(u, v);
                     if (color != 0) pixels[sy * W + sx] = ColorUtils.shade(color, light);

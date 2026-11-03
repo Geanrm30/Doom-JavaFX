@@ -2,7 +2,7 @@ package doom.render;
 
 import doom.engine.ColorUtils;
 import doom.engine.Constants;
-import doom.world.GameMap;
+import doom.world.Level;
 import doom.world.Player;
 import doom.world.World;
 
@@ -25,6 +25,8 @@ public class Renderer {
     public void render(Player player, World world) {
         int W = Constants.SCREEN_W, H = Constants.SCREEN_H, TEX = Constants.TEX_SIZE;
 
+        Level level = world.level;
+        int[] cc = level.ceiling, fc = level.floor;
         double dirX = Math.cos(player.angle), dirY = Math.sin(player.angle);
         double planeX = -dirY * 0.66, planeY = dirX * 0.66;
 
@@ -46,10 +48,10 @@ public class Renderer {
             int side = 0;
             boolean hit = false;
             int guard = 0;
-            while (!hit && guard++ < 64) {
+            while (!hit && guard++ < 96) {
                 if (sideX < sideY) { sideX += deltaX; mapX += stepX; side = 0; }
                 else               { sideY += deltaY; mapY += stepY; side = 1; }
-                if (GameMap.isWall(mapX, mapY)) hit = true;
+                if (level.isWall(mapX, mapY)) hit = true;
             }
 
             double perp = side == 0 ? sideX - deltaX : sideY - deltaY;
@@ -62,16 +64,15 @@ public class Renderer {
 
             for (int y = 0; y < H; y++) {
                 if (y < start) {
-                    double f = 1.0 - (double) y / (H / 2.0);
-                    pixels[y * W + x] = ColorUtils.rgb((int) (20 + 25 * f), (int) (20 + 22 * f), (int) (30 + 28 * f));
+                    double f = 0.45 + 1.0 * (1.0 - (double) y / (H / 2.0));
+                    pixels[y * W + x] = ColorUtils.rgb((int) (cc[0] * f), (int) (cc[1] * f), (int) (cc[2] * f));
                 } else if (y > end) {
-                    double f = (double) (y - H / 2) / (H / 2.0);
-                    pixels[y * W + x] = ColorUtils.rgb((int) (35 + 55 * f), (int) (32 + 45 * f), (int) (30 + 38 * f));
+                    double f = 0.35 + 1.0 * ((double) (y - H / 2) / (H / 2.0));
+                    pixels[y * W + x] = ColorUtils.rgb((int) (fc[0] * f), (int) (fc[1] * f), (int) (fc[2] * f));
                 }
             }
 
-            char cell = GameMap.DATA[mapY].charAt(mapX);
-            int[] tex = textures.data[Math.max(0, Math.min(3, cell - '1'))];
+            int[] tex = textures.data[TextureManager.indexFor(level.cell(mapX, mapY))];
             double wallX = side == 0 ? player.y + perp * rayY : player.x + perp * rayX;
             wallX -= Math.floor(wallX);
             int texX = (int) (wallX * TEX);
@@ -79,7 +80,7 @@ public class Renderer {
 
             double step = (double) TEX / lineH;
             double texPos = (start - H / 2.0 + lineH / 2.0) * step;
-            double light = Math.max(0.12, Math.min(1.0, 1.0 / (1.0 + perp * 0.22)));
+            double light = Math.max(0.12, Math.min(1.0, 1.0 / (1.0 + perp * level.fog)));
             if (side == 1) light *= 0.72;
             for (int y = start; y <= end; y++) {
                 int texY = (int) texPos & (TEX - 1);

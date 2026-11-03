@@ -1,5 +1,5 @@
 package doom.engine;
 
 public enum GameState {
-    PLAYING, DEAD, WON
+    TITLE, PLAYING, DEAD, LEVEL_DONE, WON
 }

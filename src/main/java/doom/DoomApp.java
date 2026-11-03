@@ -1,6 +1,7 @@
 package doom;
 
 import doom.engine.Constants;
+import doom.engine.GameState;
 import doom.hud.HudRenderer;
 import doom.input.InputHandler;
 import doom.render.Renderer;
@@ -39,12 +40,17 @@ public class DoomApp extends Application {
         Scene scene = new Scene(root);
         scene.setOnKeyPressed(e -> {
             input.keyPressed(e.getCode());
-            if (e.getCode() == KeyCode.R) world.reset();
-            if (e.getCode() == KeyCode.ESCAPE) stage.close();
+            if (e.getCode() == KeyCode.ESCAPE) {
+                if (world.state == GameState.TITLE) stage.close();
+                else world.state = GameState.TITLE;
+            } else {
+                world.keyPressed(e.getCode());
+            }
+            e.consume();
         });
         scene.setOnKeyReleased(e -> input.keyReleased(e.getCode()));
 
-        stage.setTitle("DOOM JavaFX — Raycaster");
+        stage.setTitle("DOOM JavaFX");
         stage.setScene(scene);
         stage.setResizable(false);
         stage.show();
@@ -58,10 +64,12 @@ public class DoomApp extends Application {
                 double dt = Math.min(0.05, (now - last) / 1e9);
                 last = now;
 
-                world.update(dt, input.getKeys(), renderer.zBuf);
-                renderer.render(world.player, world);
-                gc.drawImage(renderer.frame, 0, 0, cw, ch);
-                hudRenderer.draw(gc, world.player, world);
+                world.update(dt, input.getKeys());
+                if (world.state != GameState.TITLE) {
+                    renderer.render(world.player, world);
+                    gc.drawImage(renderer.frame, 0, 0, cw, ch);
+                }
+                hudRenderer.draw(gc, world);
             }
         }.start();
     }
