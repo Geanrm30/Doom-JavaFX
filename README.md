@@ -77,7 +77,9 @@ Hay 9 niveles que van subiendo de dificultad:
 | 6 | Almacen de Residuos | Dos barones jefe |
 | 7 | Complejo Infernal | Baron jefe y barones normales, aparece el rifle de plasma |
 | 8 | Santuario del Dolor | El mapa mas grande, dos barones jefe |
-| 9 | Camara Final | Ciberdemonio y Baron jefe |
+| 9 | Camara Final | Ciberdemonio e Icono del pecado |
+
+Los enemigos nuevos se mezclan a partir del primer nivel y van apareciendo mas variados segun avanzas.
 
 Las puertas se deslizan hacia arriba, esperan unos segundos y se vuelven a cerrar si no hay nadie
 en el umbral. Los enemigos buscan el camino hasta ti (rodean paredes y abren puertas normales)
@@ -102,6 +104,39 @@ piden la llave de su color, que siempre esta en una zona a la que puedes llegar 
 | Baron | 450 | Bolas de fuego rapidas y golpe fuerte |
 | Baron jefe | 700 | Como el baron, mas grande y agresivo |
 | Ciberdemonio | 1000 | Lanza tres bolas de fuego a la vez |
+| Escopetero | 40 | Dispara tres perdigones y suelta cartuchos |
+| Ametrallador | 70 | Rafagas de cuatro disparos |
+| Soldado SS | 50 | Dispara a distancia con mas punteria |
+| Espectro | 110 | Como el demonio, pero casi invisible (translucido) |
+| Alma perdida | 40 | Calavera en llamas que embiste en linea recta |
+| Elemental del dolor | 250 | Escupe almas perdidas y suelta tres al morir |
+| Caballero infernal | 500 | Como el baron, de piel clara |
+| Revenant | 300 | Garras y misiles teledirigidos |
+| Mancubus | 600 | Abanico de tres bolas de fuego |
+| Arch-vile | 350 | Llamarada que cae sobre ti si te ve (esquivala saliendo de su vista) |
+| Icono del pecado | 1200 | Jefe inmovil que invoca demonios sin parar |
+
+Los demonios invocados no cuentan para el total de enemigos del nivel.
+
+## Niveles originales de Doom
+
+El juego puede cargar los mapas originales de Doom, Doom II y Ultimate Doom desde tus propios
+archivos WAD. Los WAD no vienen incluidos (son del juego comprado): copia tus `.wad` (por ejemplo
+`DOOM.WAD`, `DOOM2.WAD`) en alguna de estas carpetas:
+
+- `wads/` junto al proyecto (o en la carpeta desde la que lanzas el juego)
+- la propia carpeta del proyecto
+- `~/.doom-javafx/wads` (en Windows `C:\Users\TU_USUARIO\.doom-javafx\wads`)
+
+Despues entra en **NIVELES DE DOOM** en el menu principal, elige el WAD y el mapa. Los archivos
+`*.wad` estan en `.gitignore`, asi que nunca se suben al repositorio.
+
+Los mapas se convierten al vuelo a la cuadricula del motor (cada celda equivale a 32 unidades de Doom):
+se respetan salas, pasillos, escalones, puertas, llaves, salida, enemigos y objetos. El Ciberdemonio y
+el Spider Mastermind se sustituyen por el Ciberdemonio, y la Arachnotron por un Mancubus (sin aracnidos).
+La llave amarilla funciona como la roja. En los mapas finales de episodio (E1M8, E2M8, E3M8, E4M6, E4M8)
+y en MAP30 el nivel termina al derrotar al jefe. Los mapas de Doom no usan el progreso de los niveles
+propios, y las luces, plataformas elevadoras y trampas con palancas se simplifican.
 
 ## Armas y objetos
 
@@ -122,6 +157,7 @@ src/main/java/doom/
   DoomApp.java, Launcher.java   ventana y bucle principal
   world/    Level, World, Player, Weapon  (reglas del juego)
   entities/ Enemy, EnemyType, EnemySprites, Projectile, Pickup, Barrel, Effect
+  wad/      Wad (lector de WAD), WadConverter (mapa de Doom a cuadricula), WadLibrary
   render/   Renderer (paredes, suelo y techo), SpriteRenderer, TextureManager, Flats
   hud/      HudRenderer (barra de estado, minimapa, pantallas)
   engine/   Constants, GameState, ColorUtils, SoundFx
@@ -142,6 +178,9 @@ Leyenda del mapa:
 1-6 paredes     D puerta     R puerta roja     U puerta azul     X salida     . suelo
 P inicio        z zombi      i imp             d demonio         c cacodemonio
 B baron         J baron jefe Y ciberdemonio
+p escopetero    x ametrallador   W soldado SS   t espectro        f alma perdida
+b elemental del dolor   K caballero infernal    V revenant        M mancubus
+A arch-vile     I icono del pecado
 h botiquin      s estimulante  a armadura      k balas           e cartuchos
 g escopeta      m ametralladora  r llave roja  u llave azul
 l lanzacohetes  q rifle de plasma    w cohetes     n celdas
@@ -160,7 +199,7 @@ El generador comprueba que todo sea alcanzable y que cada llave aparezca antes d
 
 ## Notas
 
-- Los niveles son propios; no usan los mapas originales de Doom.
+- Los 9 niveles incluidos son propios; los mapas originales de Doom se cargan de tus WAD (ver arriba).
 - El sonido se sintetiza por codigo y se mezcla en una sola linea de `javax.sound`, con
   paneo y atenuacion segun la posicion de cada sonido. Si el equipo no tiene dispositivo
   de audio, el juego sigue funcionando en silencio.

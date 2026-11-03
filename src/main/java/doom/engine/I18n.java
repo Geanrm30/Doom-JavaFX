@@ -138,6 +138,12 @@ public final class I18n {
         part("elegir", "select");
         part("sin arma", "no weapon");
         part("cuerpo", "melee");
+        part("niveles de doom", "doom levels");
+        part("mapas", "maps");
+        part("no se encontro ningun wad", "no wad files found");
+        part("copia tus .wad en la carpeta wads", "copy your .wad files to the wads folder");
+        part("jefe derrotado", "boss defeated");
+        part("no se pudo cargar", "could not load");
         part("niveles", "levels");
         part("nivel", "level");
         part("jefe", "boss");

@@ -73,7 +73,8 @@ public class Enemy extends Sprite {
 
         double dx = p.x - x, dy = p.y - y;
         double dist = Math.hypot(dx, dy);
-        boolean los = dist < 16 && w.level.lineOfSight(x, y, p.x, p.y);
+        double ss = w.level.speedScale;
+        boolean los = dist < 16 * ss && w.level.lineOfSight(x, y, p.x, p.y);
         if (los) awake = true;
         if (!awake) return;
         if (!sighted) {
@@ -112,7 +113,7 @@ public class Enemy extends Sprite {
         double mdx = tx - x, mdy = ty - y, md = Math.hypot(mdx, mdy);
         if (!los && md > 1e-6) facing = Math.atan2(mdy, mdx);
         if (type.speed > 0 && md > 1e-6 && (!direct || dist > stop)) {
-            double sp = type.speed * dt;
+            double sp = type.speed * ss * dt;
             double nx = x + mdx / md * sp;
             double ny = y + mdy / md * sp;
             double ox = x, oy = y;
@@ -155,7 +156,7 @@ public class Enemy extends Sprite {
             cooldown = type.meleeCd;
             attackAnim = 0.35;
         } else if (type.ranged != EnemyType.Ranged.NONE && (type.ranged == EnemyType.Ranged.SPAWN || los)
-                && dist < (type.ranged == EnemyType.Ranged.LUNGE ? 8 : type.ranged == EnemyType.Ranged.FLAME ? 14 : 13)) {
+                && dist < ss * (type.ranged == EnemyType.Ranged.LUNGE ? 8 : type.ranged == EnemyType.Ranged.FLAME ? 14 : 13)) {
             double ux = dx / dist, uy = dy / dist;
             switch (type.ranged) {
                 case HITSCAN -> {
@@ -181,7 +182,7 @@ public class Enemy extends Sprite {
                             : new double[]{0};
                     for (double sp : spread) {
                         double c = Math.cos(sp), sn = Math.sin(sp);
-                        w.projectiles.add(new Projectile(x, y, ux * c - uy * sn, ux * sn + uy * c, speed,
+                        w.projectiles.add(new Projectile(x, y, ux * c - uy * sn, ux * sn + uy * c, speed * ss,
                                 type.rangedDmg + RND.nextInt(5), type == EnemyType.REVENANT ? 3 : 0));
                     }
                 }
@@ -209,7 +210,7 @@ public class Enemy extends Sprite {
     private void charge(double dt, World w, Player p) {
         chargeT -= dt;
         attackAnim = 0.1;
-        double nx = x + chargeDx * 9.0 * dt, ny = y + chargeDy * 9.0 * dt;
+        double nx = x + chargeDx * 9.0 * w.level.speedScale * dt, ny = y + chargeDy * 9.0 * w.level.speedScale * dt;
         if (w.level.isWall((int) nx, (int) ny)) {
             chargeT = 0;
             return;

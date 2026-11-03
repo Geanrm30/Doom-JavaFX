@@ -324,10 +324,14 @@ public class HudRenderer {
         Player p = world.player;
         double cell = 4;
         double ox = 10, oy = 10;
+        // los mapas grandes (de Doom) muestran solo una ventana alrededor del jugador
+        int viewW = Math.min(lv.width, 64), viewH = Math.min(lv.height, 40);
+        int x0 = Math.max(0, Math.min(lv.width - viewW, (int) p.x - viewW / 2));
+        int y0 = Math.max(0, Math.min(lv.height - viewH, (int) p.y - viewH / 2));
         gc.setFill(Color.rgb(0, 0, 0, 0.45));
-        gc.fillRect(ox - 4, oy - 4, lv.width * cell + 8, lv.height * cell + 8);
-        for (int y = 0; y < lv.height; y++) {
-            for (int x = 0; x < lv.width; x++) {
+        gc.fillRect(ox - 4, oy - 4, viewW * cell + 8, viewH * cell + 8);
+        for (int y = y0; y < y0 + viewH; y++) {
+            for (int x = x0; x < x0 + viewW; x++) {
                 if (!lv.seen[y][x]) continue;
                 char c = lv.cells[y][x];
                 Color col = switch (c) {
@@ -339,10 +343,10 @@ public class HudRenderer {
                     default -> Color.rgb(170, 170, 180);
                 };
                 gc.setFill(col);
-                gc.fillRect(ox + x * cell, oy + y * cell, cell, cell);
+                gc.fillRect(ox + (x - x0) * cell, oy + (y - y0) * cell, cell, cell);
             }
         }
-        double px = ox + p.x * cell, py = oy + p.y * cell;
+        double px = ox + (p.x - x0) * cell, py = oy + (p.y - y0) * cell;
         gc.setFill(Color.rgb(255, 255, 90));
         gc.fillOval(px - 2, py - 2, 4, 4);
         gc.setStroke(Color.rgb(255, 255, 90));
@@ -398,7 +402,7 @@ public class HudRenderer {
         gc.fillText(I18n.tr(String.valueOf("DEMONIOS " + alive)), CW - 14, CH - 30);
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 15));
         gc.setFill(Color.rgb(190, 180, 160));
-        gc.fillText(I18n.tr(String.valueOf(world.levelIndex + "/" + world.levelCount + "  " + world.level.name)), CW - 14, CH - 8);
+        gc.fillText(I18n.tr(String.valueOf(world.levelLabel())), CW - 14, CH - 8);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
@@ -489,8 +493,8 @@ public class HudRenderer {
         double top, rowH;
         int visible = n;
         switch (world.screen) {
-            case MAIN -> { top = 262; rowH = 42; }
-            case LEVELS -> { top = 128; rowH = 40; visible = Math.min(n, 10); }
+            case MAIN -> { top = 250; rowH = 38; }
+            case LEVELS, WADS, MAPS -> { top = 128; rowH = 40; visible = Math.min(n, 10); }
             default -> { top = 196; rowH = 48; }
         }
         int first = Math.max(0, Math.min(world.menuIndex - visible + 1, n - visible));

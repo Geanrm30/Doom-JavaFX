@@ -30,6 +30,10 @@ public final class Level {
     /** Textura que imita la puerta secreta (copia la pared de al lado). */
     private final char[][] secretLook;
     public int secretCount;
+    /** Multiplicador de velocidad de jugador y enemigos (los mapas de Doom usan celdas mas pequenas). */
+    public double speedScale = 1.0;
+    /** Mapas de Doom que terminan al matar al jefe. */
+    public boolean bossEnd;
     /** Distancia en celdas hasta el jugador (BFS); los enemigos la siguen para rodear paredes. */
     private int[][] flow;
     private int flowCx = Integer.MIN_VALUE, flowCy;
@@ -49,6 +53,21 @@ public final class Level {
         this.doorPhase = new byte[height][width];
         this.doorTimer = new float[height][width];
         this.secretLook = new char[height][width];
+    }
+
+    /** Crea un nivel a partir de una cuadricula ya construida (mapas leidos de un WAD). */
+    public static Level fromGrid(String name, char[][] cells, int[] ceiling, int[] floor, double fog,
+                                 double startX, double startY, double startAngle, List<Thing> things,
+                                 boolean bossEnd, double speedScale) {
+        Level lv = new Level(name, cells, ceiling, floor, fog);
+        lv.startX = startX;
+        lv.startY = startY;
+        lv.startAngle = startAngle;
+        lv.things.addAll(things);
+        lv.bossEnd = bossEnd;
+        lv.speedScale = speedScale;
+        lv.prepareSecrets();
+        return lv;
     }
 
     /** Cuenta cuantos archivos levelN.txt existen consecutivamente desde 1. */
@@ -231,14 +250,36 @@ public final class Level {
         return best < here ? new int[]{bx, by} : null;
     }
 
-    /** Empieza a abrir la puerta; si ya esta abierta, reinicia la espera. */
-    /** Abre la puerta. Devuelve true solo si empieza a moverse (para que suene una vez, no en cada pulsacion). */
+    /**
+     * Abre la puerta junto con las celdas de puerta contiguas del mismo tipo (en los mapas de Doom una puerta
+     * ocupa varias celdas). Devuelve true solo si alguna empieza a moverse (para que suene una vez, no en cada pulsacion).
+     */
     public boolean open(int cx, int cy) {
         if (cx < 0 || cy < 0 || cx >= width || cy >= height) return false;
         if (!isDoor(cells[cy][cx])) {
             cells[cy][cx] = '.';
             return false;
         }
+        char kind = cells[cy][cx];
+        boolean started = false;
+        java.util.ArrayDeque<int[]> queue = new java.util.ArrayDeque<>();
+        java.util.Set<Integer> seenCells = new java.util.HashSet<>();
+        queue.add(new int[]{cx, cy});
+        seenCells.add(cy * width + cx);
+        while (!queue.isEmpty() && seenCells.size() <= 40) {
+            int[] c = queue.poll();
+            started |= openCell(c[0], c[1]);
+            if (kind == 'S') continue;
+            for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                int nx = c[0] + d[0], ny = c[1] + d[1];
+                if (nx < 0 || ny < 0 || nx >= width || ny >= height || cells[ny][nx] != kind) continue;
+                if (seenCells.add(ny * width + nx)) queue.add(new int[]{nx, ny});
+            }
+        }
+        return started;
+    }
+
+    private boolean openCell(int cx, int cy) {
         if (doorPhase[cy][cx] == 2) {
             doorTimer[cy][cx] = (float) DOOR_HOLD;
             return false;

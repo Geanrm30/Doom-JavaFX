@@ -7,6 +7,9 @@ import doom.entities.Barrel;
 import doom.entities.Effect;
 import doom.entities.Enemy;
 import doom.entities.EnemyType;
+import doom.wad.Wad;
+import doom.wad.WadConverter;
+import doom.wad.WadLibrary;
 import doom.entities.Pickup;
 import doom.entities.Projectile;
 
@@ -43,7 +46,7 @@ public class World {
     public boolean paused;
 
     // ---- menus
-    public enum Screen { MAIN, LEVELS, OPTIONS, PAUSE }
+    public enum Screen { MAIN, LEVELS, OPTIONS, PAUSE, WADS, MAPS }
 
     public record Row(String label, String value, boolean enabled) {}
 
@@ -52,6 +55,13 @@ public class World {
     private Screen optionsFrom = Screen.MAIN;
     private boolean confirmReset;
     private String[] levelNames;
+    // ---- mapas de Doom leidos de un WAD
+    /** True mientras se juega un mapa de un WAD (no toca el progreso de los niveles propios). */
+    public boolean wadMode;
+    private List<Wad> wads = new ArrayList<>();
+    private Wad curWad;
+    private int curMapIdx;
+    private String wadError = "";
     /** La ventana lo conecta para cerrar el juego y para cambiar la pantalla completa. */
     public Runnable onQuit = () -> { };
     public java.util.function.Consumer<Boolean> onFullscreen = b -> { };
@@ -103,9 +113,56 @@ public class World {
     }
 
     public void loadLevel(int index) {
-        level = Level.load(index);
-        if (level == null) throw new IllegalStateException("Falta el nivel " + index);
+        Level lv = Level.load(index);
+        if (lv == null) throw new IllegalStateException("Falta el nivel " + index);
+        wadMode = false;
         levelIndex = index;
+        setupLevel(lv, "Nivel " + index + ": " + lv.name, true);
+    }
+
+    /** Carga un mapa de un WAD; devuelve false (y avisa) si no se pudo convertir. */
+    public boolean loadWadMap(Wad wad, int mapIdx) {
+        String map = wad.maps().get(mapIdx);
+        try {
+            Wad.MapData data = wad.readMap(map);
+            if (data == null) throw new IllegalStateException("faltan piezas del mapa");
+            String t = WadLibrary.mapTitle(map);
+            WadConverter.Converted c = WadConverter.convert(data, map + (t.isEmpty() ? "" : ": " + t), progress.difficulty);
+            wadMode = true;
+            curWad = wad;
+            curMapIdx = mapIdx;
+            levelIndex = mapIdx + 1;
+            setupLevel(c.level, c.level.name, false);
+            return true;
+        } catch (RuntimeException e) {
+            wadError = "No se pudo cargar " + map;
+            say(wadError, 3.0);
+            sound.play(SoundFx.DENIED);
+            return false;
+        }
+    }
+
+    /** Partida nueva en un mapa de Doom, con el inventario inicial. */
+    public boolean startWadMap(Wad wad, int mapIdx) {
+        player.resetInventory();
+        return loadWadMap(wad, mapIdx);
+    }
+
+    public boolean isLastLevel() {
+        return wadMode ? curWad == null || curMapIdx + 1 >= curWad.maps().size() : levelIndex >= levelCount;
+    }
+
+    /** Pista de musica del nivel actual (los mapas de Doom reparten pistas entre las 80 disponibles). */
+    private int musicIndex() {
+        return wadMode ? 10 + (curMapIdx * 7 + (curWad == null ? 0 : curWad.maps().size())) % 80 : levelIndex;
+    }
+
+    public String levelLabel() {
+        return wadMode ? level.name : levelIndex + "/" + levelCount + "  " + level.name;
+    }
+
+    private void setupLevel(Level lv, String banner, boolean scatter) {
+        level = lv;
         assisted = shield || player.ghost;
         player.placeAt(level);
         levelStart.copyInventoryFrom(player);
@@ -130,7 +187,7 @@ public class World {
             int pt = Pickup.fromChar(t.type());
             if (pt >= 0) pickups.add(new Pickup(t.x(), t.y(), pt));
         }
-        scatterWeapons(index);
+        if (scatter) scatterWeapons(levelIndex);
         kills = 0;
         items = 0;
         secretsFound = 0;
@@ -139,7 +196,7 @@ public class World {
         totalItems = (int) pickups.stream()
                 .filter(p -> p.type != Pickup.RED_KEY && p.type != Pickup.BLUE_KEY).count();
         level.reveal(player.x, player.y);
-        say("Nivel " + index + ": " + level.name, 3.5);
+        say(banner, 3.5);
         state = GameState.PLAYING;
     }
 
@@ -147,10 +204,16 @@ public class World {
         player.copyInventoryFrom(levelStart);
         player.health = Math.max(player.health, 100);
         player.ammo[0] = Math.max(player.ammo[0], 50);
-        loadLevel(levelIndex);
+        if (wadMode && curWad != null) loadWadMap(curWad, curMapIdx);
+        else loadLevel(levelIndex);
     }
 
     private void finishLevel() {
+        if (wadMode) {
+            sound.play(SoundFx.EXIT);
+            state = isLastLevel() ? GameState.WON : GameState.LEVEL_DONE;
+            return;
+        }
         int done = levelIndex;
         if (!assisted && (progress.bestTime[done] <= 0 || time < progress.bestTime[done])) progress.bestTime[done] = time;
         if (done + 1 > progress.unlocked && done < levelCount) {
@@ -288,6 +351,8 @@ public class World {
             case LEVELS -> "SELECCIONAR NIVEL";
             case OPTIONS -> "OPCIONES";
             case PAUSE -> "PAUSA";
+            case WADS -> "NIVELES DE DOOM";
+            case MAPS -> curWad == null ? "" : curWad.displayName().toUpperCase();
         };
     }
 
@@ -300,7 +365,25 @@ public class World {
                 r.add(new Row("SELECCIONAR NIVEL", "", true));
                 r.add(new Row("DIFICULTAD", DIFFICULTY[progress.difficulty], true));
                 r.add(new Row("OPCIONES", "", true));
+                r.add(new Row("NIVELES DE DOOM", "", true));
                 r.add(new Row("SALIR", "", true));
+            }
+            case WADS -> {
+                for (Wad w : wads) r.add(new Row(w.displayName(), w.maps().size() + I18n.pick(" MAPAS", " MAPS"), true));
+                if (wads.isEmpty()) {
+                    r.add(new Row(I18n.pick("NO SE ENCONTRO NINGUN WAD", "NO WAD FILES FOUND"), "", false));
+                    r.add(new Row(I18n.pick("COPIA TUS .WAD EN LA CARPETA wads", "COPY YOUR .WAD FILES TO THE wads FOLDER"), "", false));
+                }
+                r.add(new Row("VOLVER", "", true));
+            }
+            case MAPS -> {
+                if (curWad != null) {
+                    for (String m : curWad.maps()) {
+                        String t = WadLibrary.mapTitle(m);
+                        r.add(new Row(t.isEmpty() ? m : m + "  " + t, "", true));
+                    }
+                }
+                r.add(new Row("VOLVER", "", true));
             }
             case LEVELS -> {
                 for (int i = 1; i <= levelCount; i++) {
@@ -361,6 +444,8 @@ public class World {
         switch (screen) {
             case MAIN -> { }
             case LEVELS -> { screen = Screen.MAIN; menuIndex = 1; }
+            case WADS -> { screen = Screen.MAIN; menuIndex = 4; }
+            case MAPS -> { screen = Screen.WADS; menuIndex = Math.max(0, wads.indexOf(curWad)); }
             case OPTIONS -> {
                 screen = optionsFrom;
                 menuIndex = optionsFrom == Screen.PAUSE ? 1 : 3;
@@ -420,8 +505,26 @@ public class World {
                     case 1 -> { screen = Screen.LEVELS; menuIndex = progress.unlocked - 1; }
                     case 2 -> menuAdjust(progress.difficulty >= 2 ? -2 : 1);
                     case 3 -> { optionsFrom = Screen.MAIN; screen = Screen.OPTIONS; menuIndex = 0; }
+                    case 4 -> {
+                        wads = WadLibrary.discover();
+                        screen = Screen.WADS;
+                        menuIndex = 0;
+                    }
                     default -> { progress.save(); onQuit.run(); }
                 }
+            }
+            case WADS -> {
+                if (menuIndex < wads.size()) {
+                    curWad = wads.get(menuIndex);
+                    screen = Screen.MAPS;
+                    menuIndex = 0;
+                } else if (menuIndex == menuRows().size() - 1) {
+                    menuBack();
+                }
+            }
+            case MAPS -> {
+                if (curWad == null || menuIndex >= curWad.maps().size()) menuBack();
+                else startWadMap(curWad, menuIndex);
             }
             case LEVELS -> {
                 if (menuIndex >= levelCount) menuBack();
@@ -531,7 +634,10 @@ public class World {
                 if (k == KeyCode.ENTER || k == KeyCode.SPACE) restartLevel();
             }
             case LEVEL_DONE -> {
-                if (k == KeyCode.ENTER || k == KeyCode.SPACE) loadLevel(levelIndex + 1);
+                if (k == KeyCode.ENTER || k == KeyCode.SPACE) {
+                    if (wadMode && curWad != null) loadWadMap(curWad, curMapIdx + 1);
+                    else loadLevel(levelIndex + 1);
+                }
             }
             case WON -> {
                 if (k == KeyCode.ENTER) toTitle();
@@ -650,7 +756,7 @@ public class World {
         if (keys.contains(KeyCode.A)) { mx += dirY; my -= dirX; }
         double len = Math.hypot(mx, my);
         if (len > 0) {
-            double sp = (run ? 4.8 : 3.0) * dt / len;
+            double sp = (run ? 4.8 : 3.0) * level.speedScale * dt / len;
             p.tryMove(level, mx * sp, my * sp);
             level.reveal(p.x, p.y);
         }
@@ -662,7 +768,7 @@ public class World {
         }
 
         sound.listener(p.x, p.y, p.angle);
-        sound.musicTrack(progress.music && state == GameState.PLAYING ? levelIndex : -1);
+        sound.musicTrack(progress.music && state == GameState.PLAYING ? musicIndex() : -1);
         level.updateFlow(p.x, p.y);
         level.updateDoors(dt, new Level.DoorListener() {
             public boolean blocked(int cx, int cy) {
@@ -846,6 +952,7 @@ public class World {
     }
 
     public boolean bossAlive() {
+        if (wadMode && !level.bossEnd) return false;
         return enemies.stream().anyMatch(e -> e.alive && e.type.isBoss());
     }
 
@@ -1181,6 +1288,11 @@ public class World {
             }
         }
         if (e.type.isBoss() && !bossAlive()) {
+            if (level.bossEnd) {
+                say("JEFE DERROTADO", 3.0);
+                finishLevel();
+                return;
+            }
             say("JEFE DERROTADO: la salida esta abierta", 4.0);
             sound.play(SoundFx.POWERUP);
         }
