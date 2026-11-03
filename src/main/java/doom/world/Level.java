@@ -13,7 +13,7 @@ public final class Level {
 
     public record Thing(char type, double x, double y) {}
 
-    private static final String THINGS = "zidcBYJhsakegmruHvwnlq";
+    private static final String THINGS = "zidcBYJhsakegmruHvownlq";
 
     public final String name;
     public final char[][] cells;
