@@ -2,12 +2,12 @@ package doom.world;
 
 public class Player {
 
-    public static final int[] MAX_AMMO = {200, 50};
+    public static final int[] MAX_AMMO = {200, 50, 30, 300};
 
     public double x = 1.5, y = 1.5, angle;
     public int health = 100, armor = 0;
-    public final int[] ammo = {50, 0};
-    public final boolean[] has = {true, false, false};
+    public final int[] ammo = {50, 0, 0, 0};
+    public final boolean[] has = {true, false, false, false, false};
     public Weapon weapon = Weapon.PISTOL;
     public boolean redKey, blueKey;
     public double invuln, bobPhase, bobAmp;
@@ -18,17 +18,16 @@ public class Player {
         health = 100;
         armor = 0;
         ammo[0] = 50;
-        ammo[1] = 0;
+        ammo[1] = ammo[2] = ammo[3] = 0;
         has[0] = true;
-        has[1] = has[2] = false;
+        has[1] = has[2] = has[3] = has[4] = false;
         weapon = Weapon.PISTOL;
     }
 
     public void copyInventoryFrom(Player o) {
         health = o.health;
         armor = o.armor;
-        ammo[0] = o.ammo[0];
-        ammo[1] = o.ammo[1];
+        System.arraycopy(o.ammo, 0, ammo, 0, ammo.length);
         System.arraycopy(o.has, 0, has, 0, has.length);
         weapon = o.weapon;
     }

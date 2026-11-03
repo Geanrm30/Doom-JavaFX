@@ -30,7 +30,7 @@ En Windows: `mvnw.cmd javafx:run`. Desde IntelliJ, ejecuta la clase `doom.Launch
 | SHIFT | Correr |
 | ESPACIO o CTRL | Disparar |
 | F o ENTER | Usar (abrir puertas, activar la salida) |
-| 1 2 3 | Cambiar de arma |
+| 1 2 3 4 5 | Cambiar de arma |
 | TAB | Mostrar u ocultar el minimapa |
 | M | Silenciar o activar el sonido |
 | ESC o P | Pausa. El menu de pausa permite continuar, cambiar opciones, volver al titulo o salir |
@@ -71,11 +71,15 @@ Hay 9 niveles que van subiendo de dificultad:
 | 2 | Planta Nuclear | Llave roja, aparece la escopeta |
 | 3 | Refineria de Toxinas | Primer jefe: Baron jefe |
 | 4 | Centro de Mando | Llaves roja y azul, aparece la ametralladora |
-| 5 | Laboratorios Fobos | Baron jefe, esferas de invulnerabilidad |
+| 5 | Laboratorios Fobos | Baron jefe, esferas de invulnerabilidad, aparece el lanzacohetes |
 | 6 | Almacen de Residuos | Dos barones jefe |
-| 7 | Complejo Infernal | Baron jefe y barones normales |
+| 7 | Complejo Infernal | Baron jefe y barones normales, aparece el rifle de plasma |
 | 8 | Santuario del Dolor | El mapa mas grande, dos barones jefe |
 | 9 | Camara Final | Ciberdemonio y Baron jefe |
+
+Las puertas se deslizan hacia arriba, esperan unos segundos y se vuelven a cerrar si no hay nadie
+en el umbral. Los enemigos buscan el camino hasta ti (rodean paredes y abren puertas normales)
+y los disparos los despiertan aunque no te vean.
 
 Para terminar un nivel hay que llegar a la pared verde con la flecha y usarla. Si el
 nivel tiene jefe, la salida no abre hasta que lo derrotes. Las puertas rojas y azules
@@ -96,7 +100,8 @@ piden la llave de su color, que siempre esta en una zona a la que puedes llegar 
 ## Armas y objetos
 
 - Pistola (balas), escopeta (cartuchos, 7 perdigones) y ametralladora (balas, cadencia alta).
-- Botiquin, estimulante, armadura, cargadores y cartuchos.
+- Lanzacohetes (cohetes, dano en area: tambien te hiere si explota cerca) y rifle de plasma (celdas, cadencia muy alta).
+- Botiquin, estimulante, armadura, cargadores, cartuchos, cohetes y celdas de energia.
 - Megasalud: salud hasta 200 y armadura al maximo.
 - Esfera de invulnerabilidad: 12 segundos sin recibir dano.
 - Llaves roja y azul.
@@ -109,7 +114,7 @@ src/main/java/doom/
   DoomApp.java, Launcher.java   ventana y bucle principal
   world/    Level, World, Player, Weapon  (reglas del juego)
   entities/ Enemy, EnemyType, EnemySprites, Projectile, Pickup, Barrel, Effect
-  render/   Renderer (paredes), SpriteRenderer, TextureManager
+  render/   Renderer (paredes, suelo y techo), SpriteRenderer, TextureManager, Flats
   hud/      HudRenderer (barra de estado, minimapa, pantallas)
   engine/   Constants, GameState, ColorUtils, SoundFx
 src/main/resources/levels/      level1.txt ... level9.txt
@@ -129,6 +134,7 @@ P inicio        z zombi      i imp             d demonio         c cacodemonio
 B baron         J baron jefe Y ciberdemonio
 h botiquin      s estimulante  a armadura      k balas           e cartuchos
 g escopeta      m ametralladora  r llave roja  u llave azul
+l lanzacohetes  q rifle de plasma    w cohetes     n celdas
 H megasalud     v invulnerabilidad             o barril explosivo
 ```
 

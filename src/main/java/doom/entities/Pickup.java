@@ -5,7 +5,8 @@ import doom.engine.ColorUtils;
 public class Pickup extends Sprite {
 
     public static final int HEALTH = 0, STIM = 1, ARMOR = 2, CLIP = 3, SHELLS = 4,
-            SHOTGUN = 5, CHAINGUN = 6, RED_KEY = 7, BLUE_KEY = 8, MEGA = 9, INVULN = 10;
+            SHOTGUN = 5, CHAINGUN = 6, RED_KEY = 7, BLUE_KEY = 8, MEGA = 9, INVULN = 10,
+            ROCKETS = 11, CELLS = 12, LAUNCHER = 13, PLASMA = 14;
 
     public final int type;
 
@@ -15,7 +16,7 @@ public class Pickup extends Sprite {
         this.type = type;
         this.scale = switch (type) {
             case STIM, CLIP -> 0.28;
-            case SHOTGUN, CHAINGUN -> 0.45;
+            case SHOTGUN, CHAINGUN, LAUNCHER, PLASMA -> 0.45;
             case RED_KEY, BLUE_KEY -> 0.35;
             default -> 0.35;
         };
@@ -39,6 +40,10 @@ public class Pickup extends Sprite {
             case 'u' -> BLUE_KEY;
             case 'H' -> MEGA;
             case 'v' -> INVULN;
+            case 'w' -> ROCKETS;
+            case 'n' -> CELLS;
+            case 'l' -> LAUNCHER;
+            case 'q' -> PLASMA;
             default -> -1;
         };
     }
@@ -80,6 +85,26 @@ public class Pickup extends Sprite {
                             : (v < 0.58 ? ColorUtils.rgb(90, 90, 95) : ColorUtils.rgb(60, 60, 65));
                 }
                 return ((int) (u * 14)) % 2 == 0 ? ColorUtils.rgb(70, 70, 78) : ColorUtils.rgb(40, 40, 46);
+            }
+            case ROCKETS -> {
+                if (v < 0.5 || v > 0.85 || Math.abs(cx) > 0.3) return 0;
+                if (((int) ((cx + 0.5) * 10)) % 3 == 2) return ColorUtils.rgb(30, 30, 30);
+                return v < 0.6 ? ColorUtils.rgb(220, 90, 30) : ColorUtils.rgb(110, 120, 100);
+            }
+            case CELLS -> {
+                if (Math.abs(cx) > 0.2 || v < 0.45 || v > 0.9) return 0;
+                if (v < 0.52) return ColorUtils.rgb(180, 180, 190);
+                return ((int) (v * 20)) % 2 == 0 ? ColorUtils.rgb(60, 200, 255) : ColorUtils.rgb(30, 110, 200);
+            }
+            case LAUNCHER -> {
+                if (v < 0.5 || v > 0.76) return 0;
+                if (v < 0.58) return ColorUtils.rgb(110, 125, 100);
+                return u > 0.8 ? ColorUtils.rgb(60, 60, 64) : ColorUtils.rgb(85, 100, 78);
+            }
+            case PLASMA -> {
+                if (v < 0.5 || v > 0.78) return 0;
+                if (v > 0.66 && v < 0.72 && u > 0.2 && u < 0.8) return ColorUtils.rgb(80, 220, 255);
+                return u < 0.3 ? ColorUtils.rgb(200, 200, 210) : ColorUtils.rgb(70, 74, 90);
             }
             case MEGA, INVULN -> {
                 double dx = u - 0.5, dy = v - 0.62;

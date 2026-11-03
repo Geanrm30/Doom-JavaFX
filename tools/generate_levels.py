@@ -261,6 +261,18 @@ def build(cfg, rng):
         z1 = [rc for rc in rooms if zone[rc] == 1]
         put(rng.choice(z1), "u")
 
+    # armas pesadas y su municion (se colocan al final para no alterar el resto del nivel)
+    if idx >= 5:
+        put(rng.choice(zone0), "l")
+        for rc in rooms:
+            if rng.random() < 0.3:
+                put(rc, "w")
+    if idx >= 7:
+        put(rng.choice(zone0), "q")
+        for rc in rooms:
+            if rng.random() < 0.35:
+                put(rc, "n")
+
     return dict(grid=grid, angle=angle, exit_in=exit_in, things=things, W=W, H=H, start=(sx, sy))
 
 

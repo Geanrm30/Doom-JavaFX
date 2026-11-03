@@ -29,8 +29,8 @@ public final class Progress {
 
     /** Inventario con el que se empieza el nivel desbloqueado mas alto. */
     public boolean hasInventory;
-    public int health = 100, armor = 0, bullets = 50, shells = 0, weapon = 0;
-    public final boolean[] has = {true, false, false};
+    public int health = 100, armor = 0, bullets = 50, shells = 0, rockets = 0, cells = 0, weapon = 0;
+    public final boolean[] has = {true, false, false, false, false};
 
     private final Path file;
 
@@ -71,7 +71,11 @@ public final class Progress {
         p.shells = num(props, "inv.shells", 0, 0, Player.MAX_AMMO[1]);
         p.has[1] = bool(props, "inv.shotgun", false);
         p.has[2] = bool(props, "inv.chaingun", false);
-        p.weapon = num(props, "inv.weapon", 0, 0, 2);
+        p.has[3] = bool(props, "inv.rocket", false);
+        p.has[4] = bool(props, "inv.plasma", false);
+        p.rockets = num(props, "inv.rockets", 0, 0, Player.MAX_AMMO[2]);
+        p.cells = num(props, "inv.cells", 0, 0, Player.MAX_AMMO[3]);
+        p.weapon = num(props, "inv.weapon", 0, 0, 4);
         if (!p.has[p.weapon]) p.weapon = 0;
         return p;
     }
@@ -95,6 +99,10 @@ public final class Progress {
         props.setProperty("inv.shells", Integer.toString(shells));
         props.setProperty("inv.shotgun", Boolean.toString(has[1]));
         props.setProperty("inv.chaingun", Boolean.toString(has[2]));
+        props.setProperty("inv.rocket", Boolean.toString(has[3]));
+        props.setProperty("inv.plasma", Boolean.toString(has[4]));
+        props.setProperty("inv.rockets", Integer.toString(rockets));
+        props.setProperty("inv.cells", Integer.toString(cells));
         props.setProperty("inv.weapon", Integer.toString(weapon));
         try {
             Files.createDirectories(file.toAbsolutePath().getParent());
@@ -121,8 +129,9 @@ public final class Progress {
         armor = 0;
         bullets = 50;
         shells = 0;
+        rockets = cells = 0;
         weapon = 0;
-        has[1] = has[2] = false;
+        has[1] = has[2] = has[3] = has[4] = false;
     }
 
     public void storeInventory(Player p) {
@@ -131,8 +140,9 @@ public final class Progress {
         armor = p.armor;
         bullets = p.ammo[0];
         shells = p.ammo[1];
-        has[1] = p.has[1];
-        has[2] = p.has[2];
+        rockets = p.ammo[2];
+        cells = p.ammo[3];
+        System.arraycopy(p.has, 1, has, 1, 4);
         weapon = p.weapon.ordinal();
     }
 
@@ -143,8 +153,9 @@ public final class Progress {
         p.armor = armor;
         p.ammo[0] = Math.max(bullets, 20);
         p.ammo[1] = shells;
-        p.has[1] = has[1];
-        p.has[2] = has[2];
+        p.ammo[2] = rockets;
+        p.ammo[3] = cells;
+        System.arraycopy(has, 1, p.has, 1, 4);
         p.weapon = Weapon.values()[weapon];
     }
 

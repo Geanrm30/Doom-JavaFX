@@ -75,6 +75,8 @@ public class HudRenderer {
         if (p.muzzle > 0) {
             gc.setFill(Color.rgb(255, 200, 60, 0.9));
             double s = w == Weapon.SHOTGUN ? 1.6 : 1.0;
+            if (w == Weapon.PLASMA) gc.setFill(Color.rgb(90, 200, 255, 0.9));
+            else if (w == Weapon.ROCKET) gc.setFill(Color.rgb(255, 150, 40, 0.9));
             gc.fillPolygon(
                 new double[]{cx - 40 * s, cx, cx + 40 * s, cx + 14 * s, cx, cx - 14 * s},
                 new double[]{by - 170 + off, by - 230 - 20 * s + off, by - 170 + off,
@@ -101,6 +103,31 @@ public class HudRenderer {
                 gc.fillRect(cx - 30, by - 156 + off, 60, 8);
                 gc.setFill(Color.rgb(120, 78, 40));
                 gc.fillRect(cx - 34, by - 70 + off, 68, 34);
+            }
+            case ROCKET -> {
+                gc.setFill(Color.rgb(70, 82, 66));
+                gc.fillRect(cx - 40, by - 130 + off, 80, 95);
+                gc.setFill(Color.rgb(100, 116, 94));
+                gc.fillRect(cx - 40, by - 130 + off, 22, 95);
+                gc.setFill(Color.rgb(20, 22, 20));
+                gc.fillOval(cx - 34, by - 160 + off, 68, 50);
+                gc.setFill(Color.rgb(8, 8, 8));
+                gc.fillOval(cx - 26, by - 154 + off, 52, 38);
+                gc.setFill(Color.rgb(180, 150, 50));
+                gc.fillRect(cx - 40, by - 62 + off, 80, 8);
+            }
+            case PLASMA -> {
+                gc.setFill(Color.rgb(52, 56, 74));
+                gc.fillRect(cx - 28, by - 140 + off, 56, 100);
+                gc.setFill(Color.rgb(90, 96, 120));
+                gc.fillRect(cx - 28, by - 140 + off, 12, 100);
+                double glow = 0.6 + 0.4 * Math.sin(System.currentTimeMillis() / 140.0);
+                gc.setFill(Color.rgb(60, (int) (170 + 60 * glow), 255));
+                gc.fillRect(cx - 8, by - 132 + off, 16, 70);
+                gc.setFill(Color.rgb(20, 24, 34));
+                gc.fillRect(cx - 34, by - 150 + off, 68, 14);
+                gc.setFill(Color.rgb(120, 220, 255));
+                gc.fillRect(cx - 20, by - 156 + off, 40, 6);
             }
             case CHAINGUN -> {
                 gc.setFill(Color.rgb(40, 40, 46));
@@ -181,8 +208,8 @@ public class HudRenderer {
 
         gc.setFill(Color.rgb(230, 200, 90));
         gc.fillText(p.weapon.label, 250, CH - 30);
-        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 18));
-        gc.fillText("BALAS " + p.ammo[0] + "  CART. " + p.ammo[1], 250, CH - 8);
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        gc.fillText("BAL " + p.ammo[0] + " CAR " + p.ammo[1] + " COH " + p.ammo[2] + " CEL " + p.ammo[3], 250, CH - 8);
 
         // llaves
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 18));

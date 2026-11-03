@@ -185,9 +185,8 @@ public class World {
             case Combo.GOD -> { shield = !shield; reply = "escudo " + (shield ? "activado" : "desactivado"); }
             case Combo.GHOST -> { p.ghost = !p.ghost; reply = "fantasma " + (p.ghost ? "activado" : "desactivado"); }
             case Combo.ARSENAL -> {
-                p.has[1] = p.has[2] = true;
-                p.ammo[0] = Player.MAX_AMMO[0];
-                p.ammo[1] = Player.MAX_AMMO[1];
+                java.util.Arrays.fill(p.has, true);
+                System.arraycopy(Player.MAX_AMMO, 0, p.ammo, 0, p.ammo.length);
                 p.armor = 200;
                 reply = "armas y municion al maximo";
             }
@@ -469,6 +468,8 @@ public class World {
                     case DIGIT1, NUMPAD1 -> selectWeapon(0);
                     case DIGIT2, NUMPAD2 -> selectWeapon(1);
                     case DIGIT3, NUMPAD3 -> selectWeapon(2);
+                    case DIGIT4, NUMPAD4 -> selectWeapon(3);
+                    case DIGIT5, NUMPAD5 -> selectWeapon(4);
                     default -> { }
                 }
             }
@@ -507,7 +508,7 @@ public class World {
     }
 
     private void bestWeapon() {
-        Weapon[] order = {Weapon.CHAINGUN, Weapon.SHOTGUN, Weapon.PISTOL};
+        Weapon[] order = {Weapon.PLASMA, Weapon.CHAINGUN, Weapon.SHOTGUN, Weapon.ROCKET, Weapon.PISTOL};
         for (Weapon w : order) {
             if (player.has[w.ordinal()] && player.ammoFor(w) > 0) {
                 player.weapon = w;
@@ -638,6 +639,28 @@ public class World {
                 p.weapon = Weapon.CHAINGUN;
                 msg = "Tienes la AMETRALLADORA (tecla 3)";
             }
+            case Pickup.ROCKETS -> {
+                if (p.ammo[2] >= Player.MAX_AMMO[2]) return false;
+                p.addAmmo(Weapon.ROCKETS, 5);
+                msg = "Cohetes: +5";
+            }
+            case Pickup.CELLS -> {
+                if (p.ammo[3] >= Player.MAX_AMMO[3]) return false;
+                p.addAmmo(Weapon.CELLS, 40);
+                msg = "Celdas de energia: +40";
+            }
+            case Pickup.LAUNCHER -> {
+                p.has[3] = true;
+                p.addAmmo(Weapon.ROCKETS, 4);
+                p.weapon = Weapon.ROCKET;
+                msg = "Tienes el LANZACOHETES (tecla 4)";
+            }
+            case Pickup.PLASMA -> {
+                p.has[4] = true;
+                p.addAmmo(Weapon.CELLS, 50);
+                p.weapon = Weapon.PLASMA;
+                msg = "Tienes el RIFLE DE PLASMA (tecla 5)";
+            }
             case Pickup.MEGA -> {
                 if (p.health >= 200) return false;
                 p.health = Math.min(200, p.health + 100);
@@ -723,12 +746,25 @@ public class World {
         p.fireCooldown = w.cooldown;
         p.recoil = w == Weapon.CHAINGUN ? 0.35 : 1.0;
         p.muzzle = 0.1;
-        sound.play(w == Weapon.PISTOL ? SoundFx.PISTOL : w == Weapon.SHOTGUN ? SoundFx.SHOTGUN : SoundFx.CHAINGUN);
+        sound.play(switch (w) {
+            case PISTOL -> SoundFx.PISTOL;
+            case SHOTGUN -> SoundFx.SHOTGUN;
+            case CHAINGUN -> SoundFx.CHAINGUN;
+            case ROCKET -> SoundFx.ROCKET;
+            case PLASMA -> SoundFx.PLASMA;
+        });
 
         for (Enemy e : enemies) {
             if (!e.alive || e.awake) continue;
             double d = Math.hypot(e.x - p.x, e.y - p.y);
             if (d < 4 || (d < 10 && level.lineOfSight(p.x, p.y, e.x, e.y)) || level.flowAt((int) e.x, (int) e.y) <= 12) e.awake = true;
+        }
+
+        if (w.proj != 0) {
+            double dx = Math.cos(p.angle), dy = Math.sin(p.angle);
+            int dmg = w.dmgMin + rnd.nextInt(w.dmgMax - w.dmgMin + 1);
+            projectiles.add(new Projectile(p.x + dx * 0.45, p.y + dy * 0.45, dx, dy, w.proj == 1 ? 13 : 20, dmg, w.proj));
+            return;
         }
 
         for (int i = 0; i < w.pellets; i++) {
@@ -763,9 +799,45 @@ public class World {
                 bb.hp -= dmg;
                 if (bb.hp <= 0) explode(bb);
             } else if (best != null) {
+                effects.add(new Effect(best.x - rx * 0.3, best.y - ry * 0.3, 1));
                 if (best.hit(dmg)) onKill(best);
+            } else {
+                // chispa donde la bala choca con la pared
+                double t = 0.3;
+                while (t < 22 && !level.isWall((int) (p.x + rx * t), (int) (p.y + ry * t))) t += 0.1;
+                if (t < 22) effects.add(new Effect(p.x + rx * (t - 0.12), p.y + ry * (t - 0.12), 2));
             }
         }
+    }
+
+    /** Explosion de un cohete: dano en area a enemigos, barriles y al propio jugador. */
+    public void blast(double bx, double by, double radius, int maxDmg) {
+        effects.add(new Effect(bx, by));
+        sound.play(SoundFx.EXPLODE, bx, by);
+        for (Barrel o : barrels) {
+            if (o.alive && Math.hypot(o.x - bx, o.y - by) < radius) explode(o);
+        }
+        for (Enemy e : enemies) {
+            if (!e.alive) continue;
+            double d = Math.hypot(e.x - bx, e.y - by);
+            if (d < radius + e.type.radius && (d < 0.8 || level.lineOfSight(bx, by, e.x, e.y))) {
+                int dmg = (int) (maxDmg * Math.max(0.15, 1 - d / (radius + e.type.radius))) + 5;
+                if (e.hit(dmg)) onKill(e);
+            }
+        }
+        double pd = Math.hypot(player.x - bx, player.y - by);
+        if (pd < radius && level.lineOfSight(bx, by, player.x, player.y)) {
+            hurtPlayer((int) (maxDmg * 0.5 * (1 - pd / radius)) + 3);
+        }
+    }
+
+    public void damageEnemy(Enemy e, int dmg) {
+        if (e.hit(dmg)) onKill(e);
+    }
+
+    public void damageBarrel(Barrel b, int dmg) {
+        b.hp -= dmg;
+        if (b.hp <= 0) explode(b);
     }
 
     private void explode(Barrel b) {

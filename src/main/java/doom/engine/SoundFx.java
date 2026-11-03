@@ -23,7 +23,8 @@ public class SoundFx {
             PAIN_HUMAN = 20, PAIN_IMP = 21, PAIN_DEMON = 22, PAIN_CACO = 23, PAIN_BOSS = 24,
             DIE_HUMAN = 25, DIE_IMP = 26, DIE_DEMON = 27, DIE_CACO = 28, DIE_BOSS = 29,
             CLAW = 30, BITE = 31, MENU_MOVE = 32, MENU_SELECT = 33, KEY = 34, EMPTY = 35, PUMP = 36,
-            COUNT = 37;
+            ROCKET = 37, PLASMA = 38,
+            COUNT = 39;
 
     static final int RATE = 44100;
     private static final int MAX_VOICES = 24;
@@ -190,6 +191,8 @@ public class SoundFx {
         bank[SHOTGUN] = concat(gun(r, 0.55, 1.2, 95, 0.45, 8, true), silence(0.12), pump());
         bank[CHAINGUN] = gun(r, 0.14, 0.9, 190, 0.6, 22, false);
         bank[PUMP] = pump();
+        bank[ROCKET] = concat(rocketLaunch(r));
+        bank[PLASMA] = plasmaShot(r);
         bank[EMPTY] = click(0.9);
 
         bank[HURT] = voice(new double[]{150, 105}, 0.28, 700, 1100, 0.15, 0.9, 0.0);
@@ -288,6 +291,36 @@ public class SoundFx {
         }
         int echo = (int) (0.055 * RATE);
         for (int i = n - 1; i >= echo; i--) s[i] += s[i - echo] * (tail ? 0.35f : 0.18f);
+        fade(s);
+        return s;
+    }
+
+    private static float[] rocketLaunch(Random r) {
+        int n = (int) (0.6 * RATE);
+        float[] s = new float[n];
+        Band b = new Band(500, 1.5);
+        double ph = 0;
+        for (int i = 0; i < n; i++) {
+            double t = (double) i / RATE, k = (double) i / n;
+            ph += 2 * Math.PI * (110 - 60 * k) / RATE;
+            double env = Math.exp(-t * 5) * Math.min(1, t * 200);
+            double whoosh = b.next(r.nextDouble() * 2 - 1) * 2.2 * Math.sin(Math.PI * Math.min(1, k * 1.3));
+            s[i] = (float) ((Math.sin(ph) * 0.9 * env + whoosh * 0.5) * 0.8);
+        }
+        fade(s);
+        return s;
+    }
+
+    private static float[] plasmaShot(Random r) {
+        int n = (int) (0.16 * RATE);
+        float[] s = new float[n];
+        double ph = 0;
+        for (int i = 0; i < n; i++) {
+            double t = (double) i / RATE, k = (double) i / n;
+            ph += 2 * Math.PI * (2400 - 2000 * k) / RATE;
+            double env = Math.exp(-t * 18);
+            s[i] = (float) ((Math.sin(ph) * 0.7 + (r.nextDouble() * 2 - 1) * 0.25 * (1 - k)) * env * 0.7);
+        }
         fade(s);
         return s;
     }
