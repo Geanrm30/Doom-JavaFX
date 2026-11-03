@@ -26,6 +26,7 @@ En Windows: `mvnw.cmd javafx:run`. Desde IntelliJ, ejecuta la clase `doom.Launch
 | Clic derecho | Usar |
 | Rueda del raton | Cambiar de arma |
 | L | Activar o desactivar el giro con el raton |
+| F11 | Pantalla completa o ventana |
 | SHIFT | Correr |
 | ESPACIO o CTRL | Disparar |
 | F o ENTER | Usar (abrir puertas, activar la salida) |
@@ -44,7 +45,13 @@ derecho para volver y la rueda para moverse.
 - **Opciones:** sensibilidad del raton, giro con el raton, sonido, pantalla completa y borrar progreso.
 - Al morir, ENTER reintenta el nivel actual.
 
+El juego arranca en pantalla completa (se puede cambiar en Opciones o con F11) y la imagen
+se escala a la ventana manteniendo la proporcion. En pantalla completa ESC no sale: es la pausa.
 El juego se pausa solo si la ventana pierde el foco.
+
+Si el cursor se sale de la ventana al girar (algunos escalados de pantalla de Windows lo
+provocan), el juego lo detecta, prueba otra calibracion y, si no funciona, sigue girando sin
+recentrar el cursor.
 
 ## Progreso
 

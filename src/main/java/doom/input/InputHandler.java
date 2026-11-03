@@ -22,7 +22,7 @@ public class InputHandler {
     public void addMouseTurn(double radians) { mouseTurn += radians; }
 
     public double takeMouseTurn() {
-        double t = mouseTurn;
+        double t = Math.max(-0.5, Math.min(0.5, mouseTurn)); // un solo fotograma nunca gira mas de ~29 grados
         mouseTurn = 0;
         return t;
     }
