@@ -3,7 +3,7 @@
 Un juego tipo Doom hecho desde cero en Java 21 y JavaFX. Usa un raycaster (el mismo
 principio de Wolfenstein 3D): el mundo es una cuadricula y cada columna de pantalla se
 dibuja lanzando un rayo. No usa imagenes ni archivos de audio: las texturas, los
-sprites , los sonidos y la musica de fondo se generan por codigo.
+sprites, los sonidos y la musica de fondo se generan por codigo.
 
 ## Como ejecutarlo
 
