@@ -168,6 +168,20 @@ public class World {
         }
     }
 
+    /** Rueda del raton: siguiente (+1) o anterior (-1) arma disponible. */
+    public void cycleWeapon(int dir) {
+        if (state != GameState.PLAYING || paused) return;
+        int n = Weapon.values().length;
+        int i = player.weapon.ordinal();
+        for (int step = 0; step < n; step++) {
+            i = (i + dir + n) % n;
+            if (player.has[i]) {
+                player.weapon = Weapon.values()[i];
+                return;
+            }
+        }
+    }
+
     private void selectWeapon(int i) {
         if (!player.has[i]) {
             say("No tienes esa arma", 1.5);
@@ -189,6 +203,10 @@ public class World {
     // ---------------------------------------------------------------- actualizacion
 
     public void update(double dt, Set<KeyCode> keys) {
+        update(dt, keys, 0, false);
+    }
+
+    public void update(double dt, Set<KeyCode> keys, double mouseTurn, boolean mouseFire) {
         Player p = player;
 
         if (messageTimer > 0) messageTimer -= dt;
@@ -202,6 +220,7 @@ public class World {
         time += dt;
         if (p.invuln > 0) p.invuln -= dt;
 
+        p.angle += mouseTurn;
         boolean run = keys.contains(KeyCode.SHIFT);
         double rot = (run ? 3.0 : 2.2) * dt;
         if (keys.contains(KeyCode.LEFT) || keys.contains(KeyCode.Q)) p.angle -= rot;
@@ -220,7 +239,7 @@ public class World {
             level.reveal(p.x, p.y);
         }
 
-        if ((keys.contains(KeyCode.SPACE) || keys.contains(KeyCode.CONTROL)) && p.fireCooldown <= 0) {
+        if ((mouseFire || keys.contains(KeyCode.SPACE) || keys.contains(KeyCode.CONTROL)) && p.fireCooldown <= 0) {
             tryFire();
         }
 

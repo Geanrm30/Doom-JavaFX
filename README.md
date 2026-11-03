@@ -21,6 +21,11 @@ En Windows: `mvnw.cmd javafx:run`. Desde IntelliJ, ejecuta la clase `doom.Launch
 | --- | --- |
 | W A S D | Moverse y desplazarse de lado |
 | Q E o flechas izquierda/derecha | Girar |
+| Raton | Girar (el cursor se oculta y se recentra solo) |
+| Clic izquierdo | Disparar |
+| Clic derecho | Usar |
+| Rueda del raton | Cambiar de arma |
+| L | Activar o desactivar el giro con el raton |
 | SHIFT | Correr |
 | ESPACIO o CTRL | Disparar |
 | F o ENTER | Usar (abrir puertas, activar la salida) |
@@ -32,6 +37,8 @@ En Windows: `mvnw.cmd javafx:run`. Desde IntelliJ, ejecuta la clase `doom.Launch
 
 En la pantalla de titulo, izquierda y derecha eligen el nivel inicial. Al morir, ENTER
 reintenta el nivel actual.
+
+El juego se pausa solo si la ventana pierde el foco.
 
 ## Niveles
 
