@@ -30,6 +30,7 @@ public class SpriteRenderer {
             double tx = invDet * (dirY * dx - dirX * dy);
             double ty = invDet * (-planeY * dx + planeX * dy);
             if (ty < 0.15) continue;
+            s.prepare(player.x, player.y);
 
             int screenX = (int) (W / 2.0 * (1 + tx / ty));
             int fullH = (int) Math.abs(H / ty);

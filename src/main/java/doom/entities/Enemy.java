@@ -19,6 +19,10 @@ public class Enemy extends Sprite {
     /** Animacion: fase de caminata, tiempo de ataque restante y tiempo desde la muerte. */
     private double walkPhase, attackAnim, deathTime, painGap;
     private boolean sighted, painPending;
+    /** Hacia donde mira el enemigo (radianes) y la vista elegida para la camara. */
+    private double facing;
+    private int view;
+    private boolean mirror;
 
     public Enemy(EnemyType type, double x, double y) {
         this.type = type;
@@ -28,6 +32,7 @@ public class Enemy extends Sprite {
         this.scale = type.scale;
         this.lift = type.lift;
         this.cooldown = 0.5 + RND.nextDouble();
+        this.facing = RND.nextDouble() * Math.PI * 2;
     }
 
     /** @return true si este golpe lo mato */
@@ -77,6 +82,7 @@ public class Enemy extends Sprite {
             case CYBER -> 3.0;
             default -> 1.1;
         };
+        if (los) facing = Math.atan2(dy, dx);
         boolean direct = dist < 1.6 || (los && w.level.flowAt((int) x, (int) y) <= dist * 1.5 + 2);
         double tx = p.x, ty = p.y;
         if (!direct) {
@@ -91,6 +97,7 @@ public class Enemy extends Sprite {
             }
         }
         double mdx = tx - x, mdy = ty - y, md = Math.hypot(mdx, mdy);
+        if (!los && md > 1e-6) facing = Math.atan2(mdy, mdx);
         if (md > 1e-6 && (!direct || dist > stop)) {
             double sp = type.speed * dt;
             double nx = x + mdx / md * sp;
@@ -183,8 +190,20 @@ public class Enemy extends Sprite {
     }
 
     @Override
+    public void prepare(double viewerX, double viewerY) {
+        double rel = Math.atan2(viewerY - y, viewerX - x) - facing;
+        while (rel > Math.PI) rel -= 2 * Math.PI;
+        while (rel < -Math.PI) rel += 2 * Math.PI;
+        double a = Math.abs(rel);
+        view = a < Math.PI / 8 ? 0 : a < 3 * Math.PI / 8 ? 1 : a < 5 * Math.PI / 8 ? 2 : a < 7 * Math.PI / 8 ? 3 : 4;
+        mirror = rel < 0;
+    }
+
+    @Override
     public int colorAt(double u, double v) {
-        int c = EnemySprites.pixel(type, frame(), u, v);
+        int fr = frame();
+        boolean turned = alive && fr <= EnemySprites.ATTACK;
+        int c = EnemySprites.pixel(type, fr, turned ? view : 0, turned && mirror ? 1 - u : u, v);
         if (c != 0 && hurt > 0 && alive) {
             int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
             return ColorUtils.rgb(Math.min(255, r + 110), Math.min(255, g + 70), Math.min(255, b + 70));

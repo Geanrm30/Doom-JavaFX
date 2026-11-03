@@ -8,23 +8,32 @@ public final class EnemySprites {
 
     public static final int STAND = 0, WALK1 = 1, WALK2 = 2, ATTACK = 3, DIE1 = 4, DIE2 = 5, CORPSE = 6;
     public static final int FRAMES = 7;
+    /** Vistas segun el angulo desde el que se mira: 0 de frente, 1 y 3 en tres cuartos, 2 de lado, 4 de espalda. */
+    public static final int VIEWS = 5;
+    private static final double[] VIEW_WIDTH = {1.0, 0.84, 0.62, 0.84, 1.0};
+    private static boolean back;
     static final int N = 96;
 
-    private static final int[][][] SHEET = new int[EnemyType.values().length][FRAMES][];
+    private static final int[][][][] SHEET = new int[EnemyType.values().length][FRAMES][VIEWS][];
 
     static {
         for (EnemyType t : EnemyType.values()) {
-            for (int f = 0; f < FRAMES; f++) SHEET[t.ordinal()][f] = build(t, f);
+            for (int f = 0; f < FRAMES; f++) {
+                int views = f <= ATTACK ? VIEWS : 1;
+                for (int v = 0; v < VIEWS; v++) {
+                    SHEET[t.ordinal()][f][v] = v < views ? build(t, f, v) : SHEET[t.ordinal()][f][0];
+                }
+            }
         }
     }
 
     private EnemySprites() { }
 
     /** Color ARGB del fotograma en (u, v) de 0 a 1; 0 si es transparente. */
-    public static int pixel(EnemyType t, int frame, double u, double v) {
+    public static int pixel(EnemyType t, int frame, int view, double u, double v) {
         int x = (int) (u * N), y = (int) (v * N);
         if (x < 0 || y < 0 || x >= N || y >= N) return 0;
-        return SHEET[t.ordinal()][frame][y * N + x];
+        return SHEET[t.ordinal()][frame][view][y * N + x];
     }
 
     /** Hoja con todos los fotogramas de todos los tipos (para revisar el aspecto). */
@@ -33,7 +42,7 @@ public final class EnemySprites {
         int[] out = new int[N * FRAMES * N * rows];
         for (int r = 0; r < rows; r++) {
             for (int f = 0; f < FRAMES; f++) {
-                int[] src = SHEET[r][f];
+                int[] src = SHEET[r][f][0];
                 for (int y = 0; y < N; y++) {
                     for (int x = 0; x < N; x++) {
                         int c = src[y * N + x];
@@ -159,7 +168,7 @@ public final class EnemySprites {
 
     // ------------------------------------------------------------------ fotogramas
 
-    private static int[] build(EnemyType t, int frame) {
+    private static int[] build(EnemyType t, int frame, int view) {
         Cv cv = new Cv();
         if (frame == CORPSE) {
             corpse(cv, t);
@@ -169,7 +178,10 @@ public final class EnemySprites {
             squash(live, cv, frame == DIE1 ? 0.72 : 0.42, frame == DIE1 ? 1.04 : 1.22, frame == DIE1 ? 0.03 : 0.0);
             if (frame == DIE2) blood(cv, 0.5, 0.95, 0.30, 0.04, t);
         } else {
+            back = view >= 3;
             alive(cv, t, frame);
+            back = false;
+            if (view > 0 && view < 4) narrow(cv, VIEW_WIDTH[view]);
         }
         cv.finish();
         return cv.px;
@@ -186,6 +198,19 @@ public final class EnemySprites {
             case CYBER -> cyber(cv, swing, atk);
             case BARON -> baron(cv, swing, atk, false);
             case BOSS_BARON -> baron(cv, swing, atk, true);
+        }
+    }
+
+    /** Estrecha la figura (visto de lado) manteniendo el centro. */
+    private static void narrow(Cv cv, double w) {
+        int[] src = cv.px.clone();
+        java.util.Arrays.fill(cv.px, 0);
+        for (int y = 0; y < N; y++) {
+            for (int x = 0; x < N; x++) {
+                double u = (x + 0.5) / N;
+                int sx = (int) ((0.5 + (u - 0.5) / w) * N);
+                if (sx >= 0 && sx < N) cv.px[y * N + x] = src[y * N + sx];
+            }
         }
     }
 
@@ -242,6 +267,7 @@ public final class EnemySprites {
     }
 
     private static void eyes(Cv cv, double cx, double cy, double gap, double r, int color) {
+        if (back) return;
         for (int s = -1; s <= 1; s += 2) {
             cv.ell(cx + s * gap, cy, r, r * 0.7, color);
         }
@@ -271,14 +297,14 @@ public final class EnemySprites {
         cv.ell(0.5, 0.17, 0.115, 0.085, Cv.rgb(80, 92, 70));
         cv.rect(0.38, 0.19, 0.62, 0.215, Cv.rgb(60, 70, 52));
         eyes(cv, 0.5, 0.235, 0.04, 0.016, Cv.rgb(25, 25, 25));
-        cv.rect(0.46, 0.275, 0.54, 0.285, Cv.rgb(110, 40, 40));
+        if (!back) cv.rect(0.46, 0.275, 0.54, 0.285, Cv.rgb(110, 40, 40));
     }
 
     private static void imp(Cv cv, double swing, boolean atk) {
         int sk = Cv.rgb(150, 74, 48), dk = Cv.rgb(105, 48, 32), bone = Cv.rgb(230, 220, 190);
         legs(cv, swing, dk, Cv.shade(dk, 0.7), 0.60, 0.95, 0.11, 1.0);
         cv.ell(0.5, 0.47, 0.17, 0.21, sk);
-        for (int i = 0; i < 4; i++) cv.rect(0.40, 0.38 + i * 0.05, 0.60, 0.395 + i * 0.05, Cv.shade(sk, 0.78)); // costillas
+        if (!back) for (int i = 0; i < 4; i++) cv.rect(0.40, 0.38 + i * 0.05, 0.60, 0.395 + i * 0.05, Cv.shade(sk, 0.78)); // costillas
         // puas en los hombros
         for (int s = -1; s <= 1; s += 2) {
             cv.tri(0.5 + s * 0.17, 0.33, 0.5 + s * 0.30, 0.20, 0.5 + s * 0.26, 0.37, bone);
@@ -298,10 +324,10 @@ public final class EnemySprites {
         cv.ell(0.5, 0.215, 0.10, 0.11, sk);
         cv.tri(0.40, 0.14, 0.36, 0.04, 0.45, 0.12, bone);
         cv.tri(0.60, 0.14, 0.64, 0.04, 0.55, 0.12, bone);
-        cv.rect(0.40, 0.18, 0.60, 0.20, dk); // ceja
+        if (!back) cv.rect(0.40, 0.18, 0.60, 0.20, dk); // ceja
         eyes(cv, 0.5, 0.21, 0.04, 0.02, Cv.rgb(255, 235, 40));
-        cv.ell(0.5, 0.27, 0.05, atk ? 0.035 : 0.02, Cv.rgb(60, 8, 8));
-        if (atk) for (int i = -1; i <= 1; i++) cv.tri(0.5 + i * 0.03 - 0.012, 0.245, 0.5 + i * 0.03 + 0.012, 0.245, 0.5 + i * 0.03, 0.275, bone);
+        if (!back) cv.ell(0.5, 0.27, 0.05, atk ? 0.035 : 0.02, Cv.rgb(60, 8, 8));
+        if (!back) if (atk) for (int i = -1; i <= 1; i++) cv.tri(0.5 + i * 0.03 - 0.012, 0.245, 0.5 + i * 0.03 + 0.012, 0.245, 0.5 + i * 0.03, 0.275, bone);
     }
 
     private static void claws(Cv cv, double x, double y, int c) {
@@ -312,7 +338,7 @@ public final class EnemySprites {
         int sk = Cv.rgb(214, 112, 134), dk = Cv.rgb(160, 70, 92), bone = Cv.rgb(238, 228, 200);
         legs(cv, swing, dk, Cv.shade(dk, 0.6), 0.62, 0.95, 0.15, 1.1);
         cv.ell(0.5, 0.52, 0.25, 0.22, sk);
-        cv.ell(0.5, 0.60, 0.17, 0.12, Cv.shade(sk, 1.1)); // panza
+        if (!back) cv.ell(0.5, 0.60, 0.17, 0.12, Cv.shade(sk, 1.1)); // panza
         // brazos cortos hacia delante
         double ex = atk ? 0.20 : 0.24;
         cv.limb(0.30, 0.42, ex, atk ? 0.40 : 0.62, 0.10, sk);
@@ -321,12 +347,12 @@ public final class EnemySprites {
         cv.ell(0.5, 0.28, 0.17, 0.15, sk);
         cv.tri(0.36, 0.20, 0.28, 0.04, 0.44, 0.16, bone);
         cv.tri(0.64, 0.20, 0.72, 0.04, 0.56, 0.16, bone);
-        cv.ell(0.5, 0.35, 0.12, atk ? 0.075 : 0.045, Cv.rgb(80, 8, 14)); // boca
-        for (int i = -3; i <= 3; i++) {
+        if (!back) cv.ell(0.5, 0.35, 0.12, atk ? 0.075 : 0.045, Cv.rgb(80, 8, 14)); // boca
+        if (!back) for (int i = -3; i <= 3; i++) {
             cv.tri(0.5 + i * 0.03 - 0.011, atk ? 0.30 : 0.325, 0.5 + i * 0.03 + 0.011, atk ? 0.30 : 0.325, 0.5 + i * 0.03, atk ? 0.34 : 0.350, bone);
         }
         eyes(cv, 0.5, 0.245, 0.07, 0.022, Cv.rgb(255, 210, 30));
-        cv.rect(0.38, 0.215, 0.62, 0.228, Cv.shade(dk, 0.7));
+        if (!back) cv.rect(0.38, 0.215, 0.62, 0.228, Cv.shade(dk, 0.7));
     }
 
     private static void caco(Cv cv, double swing, boolean atk) {
@@ -340,6 +366,7 @@ public final class EnemySprites {
         cv.ell(0.5, 0.52 + bob, 0.43, 0.41, bd);
         cv.ell(0.5, 0.72 + bob, 0.34, 0.17, Cv.shade(bd, 0.75));
         // ojo
+        if (!back) {
         cv.ell(0.5, 0.36 + bob, 0.17, 0.15, Cv.rgb(240, 236, 220));
         cv.ell(0.5, 0.37 + bob, 0.09, 0.09, atk ? Cv.rgb(220, 40, 20) : Cv.rgb(60, 190, 70));
         cv.ell(0.5, 0.37 + bob, atk ? 0.05 : 0.03, atk ? 0.05 : 0.04, Cv.rgb(8, 8, 8));
@@ -352,6 +379,7 @@ public final class EnemySprites {
             double x = 0.5 + i * 0.05;
             cv.tri(x - 0.018, 0.68 + bob - open * 0.75, x + 0.018, 0.68 + bob - open * 0.75, x, 0.68 + bob - open * 0.75 + 0.06, bone);
             cv.tri(x - 0.018, 0.68 + bob + open * 0.75, x + 0.018, 0.68 + bob + open * 0.75, x, 0.68 + bob + open * 0.75 - 0.05, bone);
+        }
         }
         cv.tri(0.32, 0.22 + bob, 0.30, 0.06 + bob, 0.40, 0.17 + bob, bone);
         cv.tri(0.68, 0.22 + bob, 0.70, 0.06 + bob, 0.60, 0.17 + bob, bone);
@@ -387,9 +415,9 @@ public final class EnemySprites {
         cv.ell(0.5, 0.20, 0.13, 0.13, sk);
         cv.tri(0.38, 0.16, 0.22, 0.02, 0.37, 0.07, bone);
         cv.tri(0.62, 0.16, 0.78, 0.02, 0.63, 0.07, bone);
-        cv.rect(0.38, 0.17, 0.62, 0.195, dk);
+        if (!back) cv.rect(0.38, 0.17, 0.62, 0.195, dk);
         eyes(cv, 0.5, 0.215, 0.05, 0.024, Cv.rgb(255, 60, 30));
-        cv.rect(0.43, 0.26, 0.57, 0.285, Cv.rgb(50, 8, 8));
+        if (!back) cv.rect(0.43, 0.26, 0.57, 0.285, Cv.rgb(50, 8, 8));
     }
 
     private static void baron(Cv cv, double swing, boolean atk, boolean boss) {
@@ -407,7 +435,7 @@ public final class EnemySprites {
         }
         cv.ell(0.5, 0.45, 0.24, 0.23, sk);
         cv.ell(0.5, 0.50, 0.14, 0.16, Cv.shade(sk, 1.12));
-        for (int i = 0; i < 3; i++) cv.rect(0.43, 0.41 + i * 0.06, 0.57, 0.425 + i * 0.06, Cv.shade(sk, 0.72));
+        if (!back) for (int i = 0; i < 3; i++) cv.rect(0.43, 0.41 + i * 0.06, 0.57, 0.425 + i * 0.06, Cv.shade(sk, 0.72));
         if (boss) {
             for (int s = -1; s <= 1; s += 2) {
                 for (int i = 0; i < 3; i++) {
@@ -435,9 +463,9 @@ public final class EnemySprites {
             cv.limb(0.5 + s * 0.09, 0.12, 0.5 + s * 0.22, 0.10, 0.05, bone);
             cv.limb(0.5 + s * 0.22, 0.10, 0.5 + s * 0.28, 0.01, 0.04, bone);
         }
-        cv.rect(0.39, 0.17, 0.61, 0.19, Cv.shade(sk, 0.65));
+        if (!back) cv.rect(0.39, 0.17, 0.61, 0.19, Cv.shade(sk, 0.65));
         eyes(cv, 0.5, 0.205, 0.045, 0.02, eye);
-        cv.ell(0.5, 0.265, 0.05, atk ? 0.04 : 0.02, Cv.rgb(50, 6, 8));
-        if (atk) for (int i = -1; i <= 1; i++) cv.tri(0.5 + i * 0.03 - 0.01, 0.235, 0.5 + i * 0.03 + 0.01, 0.235, 0.5 + i * 0.03, 0.27, bone);
+        if (!back) cv.ell(0.5, 0.265, 0.05, atk ? 0.04 : 0.02, Cv.rgb(50, 6, 8));
+        if (!back) if (atk) for (int i = -1; i <= 1; i++) cv.tri(0.5 + i * 0.03 - 0.01, 0.235, 0.5 + i * 0.03 + 0.01, 0.235, 0.5 + i * 0.03, 0.27, bone);
     }
 }
