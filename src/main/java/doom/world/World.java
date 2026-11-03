@@ -1,6 +1,7 @@
 package doom.world;
 
 import doom.engine.GameState;
+import doom.engine.I18n;
 import doom.engine.SoundFx;
 import doom.entities.Barrel;
 import doom.entities.Effect;
@@ -26,6 +27,7 @@ public class World {
     public final List<Effect> effects = new ArrayList<>();
     public final SoundFx sound = new SoundFx();
     public final Progress progress = Progress.load();
+    { doom.engine.I18n.english = progress.english; }
 
     public Level level;
     public GameState state = GameState.TITLE;
@@ -57,8 +59,6 @@ public class World {
     /** 0 facil, 1 normal, 2 dificil: cambia el dano que recibes. */
 
     public boolean consoleOpen;
-    /** Hay un enemigo al alcance de la katana que se puede ejecutar. */
-    public boolean executeReady;
     private Enemy execTarget;
     /** Rueda de armas abierta (se mantiene TAB): el tiempo corre muy lento mientras se elige. */
     public boolean wheelOpen;
@@ -309,10 +309,11 @@ public class World {
             }
             case OPTIONS -> {
                 r.add(new Row("SENSIBILIDAD DEL RATON", progress.sensitivity + " / 10", true));
-                r.add(new Row("GIRO CON EL RATON", progress.mouseLook ? "SI" : "NO", true));
+                r.add(new Row("GIRO CON EL RATON", progress.mouseLook ? I18n.yes() : I18n.no(), true));
                 r.add(new Row("VOLUMEN", sound.muted ? "SILENCIO" : progress.volume + " / 10", true));
-                r.add(new Row("MUSICA", progress.music ? "SI" : "NO", true));
-                r.add(new Row("PANTALLA COMPLETA", progress.fullscreen ? "SI" : "NO", true));
+                r.add(new Row("MUSICA", progress.music ? I18n.yes() : I18n.no(), true));
+                r.add(new Row("PANTALLA COMPLETA", progress.fullscreen ? I18n.yes() : I18n.no(), true));
+                r.add(new Row("IDIOMA", progress.english ? "ENGLISH" : "ESPANOL", true));
                 r.add(new Row(confirmReset ? "SEGURO? PULSA ENTER OTRA VEZ" : "BORRAR PROGRESO", "", true));
                 r.add(new Row("VOLVER", "", true));
             }
@@ -384,6 +385,11 @@ public class World {
                 }
                 case 3 -> progress.music = !progress.music;
                 case 4 -> setFullscreen(!progress.fullscreen);
+                case 5 -> {
+                    progress.english = !progress.english;
+                    I18n.english = progress.english;
+                    levelNames = null;
+                }
                 default -> { return; }
             }
             progress.save();
@@ -397,7 +403,7 @@ public class World {
 
     /** Clic sobre una fila: dir -1/+1 si se pulso la flecha izquierda/derecha del valor, 0 para activar. */
     public void menuClick(int dir) {
-        boolean adjustable = (screen == Screen.MAIN && menuIndex == 2) || (screen == Screen.OPTIONS && menuIndex <= 4);
+        boolean adjustable = (screen == Screen.MAIN && menuIndex == 2) || (screen == Screen.OPTIONS && menuIndex <= 5);
         if (dir != 0 && adjustable) menuAdjust(dir);
         else menuActivate();
     }
@@ -426,8 +432,8 @@ public class World {
                         sound.volume = progress.volume;
                         progress.save();
                     }
-                    case 1, 3, 4 -> menuAdjust(1);
-                    case 5 -> {
+                    case 1, 3, 4, 5 -> menuAdjust(1);
+                    case 6 -> {
                         if (confirmReset) {
                             progress.resetProgress();
                             progress.save();
@@ -482,7 +488,7 @@ public class World {
     }
 
     private void say(String msg, double secs) {
-        message = msg;
+        message = doom.engine.I18n.tr(msg);
         messageTimer = secs;
     }
 
@@ -504,7 +510,7 @@ public class World {
                     return;
                 }
                 switch (k) {
-                    case F, ENTER -> { if (!tryExecute()) use(); }
+                    case F, ENTER -> use();
                     case TAB -> openWheel();
                     case N -> showMap = !showMap;
                     case P -> pause();
@@ -626,7 +632,6 @@ public class World {
             updateExecution(dt);
         }
         updateReload(dt);
-        executeReady = p.execT <= 0 && p.weapon == Weapon.KATANA && findExecutionTarget() != null;
 
         p.angle += mouseTurn;
         boolean run = keys.contains(KeyCode.SHIFT);
@@ -952,15 +957,6 @@ public class World {
         return (e.hp <= e.type.hp * 0.35 || !e.awake) ? e : null;
     }
 
-    private boolean tryExecute() {
-        Player p = player;
-        if (p.weapon != Weapon.KATANA || p.execT > 0 || p.fireCooldown > 0.2) return false;
-        Enemy t = findExecutionTarget();
-        if (t == null) return false;
-        startExecution(t);
-        return true;
-    }
-
     private void startExecution(Enemy t) {
         Player p = player;
         execTarget = t;
@@ -1002,7 +998,6 @@ public class World {
 
     private void melee() {
         Player p = player;
-        if (tryExecute()) return;
         Weapon w = p.weapon;
         p.fireCooldown = w.cooldown;
         p.slash = 1;
@@ -1022,11 +1017,18 @@ public class World {
             while (diff < -Math.PI) diff += 2 * Math.PI;
             if (d < bd && Math.abs(diff) < 0.6) { hitBarrel = b; bd = d; }
         }
+        // al rematar de cerca a un enemigo debil o desprevenido, a veces se hace una ejecucion sola
+        Enemy weak = findExecutionTarget();
+        if (weak != null && rnd.nextDouble() < (weak.hp <= weak.type.hp * 0.35 ? 0.5 : 0.35)) {
+            startExecution(weak);
+            return;
+        }
         int dmg = w.dmgMin + rnd.nextInt(w.dmgMax - w.dmgMin + 1);
         if (t != null && (hitBarrel == null || Math.hypot(t.x - p.x, t.y - p.y) < bd)) {
             sound.play(SoundFx.SLASH_HIT);
             for (int i = 0; i < 2; i++) effects.add(new Effect(t.x - Math.cos(p.angle) * 0.3, t.y - Math.sin(p.angle) * 0.3, 1));
             if (t.hit(dmg)) onKill(t);
+            else if (!t.type.isBoss() && t.hp <= t.type.hp * 0.35 && rnd.nextDouble() < 0.4) startExecution(t);
         } else if (hitBarrel != null) {
             sound.play(SoundFx.SLASH_HIT);
             damageBarrel(hitBarrel, dmg);

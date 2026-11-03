@@ -2,6 +2,7 @@ package doom.hud;
 
 import doom.engine.Constants;
 import doom.engine.GameState;
+import doom.engine.I18n;
 import doom.entities.Enemy;
 import doom.world.Level;
 import doom.world.Player;
@@ -46,13 +47,6 @@ public class HudRenderer {
         if (st == GameState.PLAYING) drawWeapon(gc, player);
         drawCrosshair(gc);
         if (st == GameState.PLAYING && player.execT > 0) drawExecution(gc, player);
-        if (st == GameState.PLAYING && world.executeReady && player.execT <= 0 && !world.paused) {
-            gc.setTextAlign(TextAlignment.CENTER);
-            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
-            gc.setFill(Color.rgb(230, 50, 40));
-            gc.fillText("EJECUTAR  [CLIC / F]", CW / 2, CH / 2 - 70);
-            gc.setTextAlign(TextAlignment.LEFT);
-        }
         if (world.showMap) drawMiniMap(gc, world);
         drawStatusBar(gc, world);
         drawMessage(gc, world);
@@ -369,29 +363,29 @@ public class HudRenderer {
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
         gc.setFill(p.health > 100 ? Color.rgb(110, 190, 255) : p.health > 30 ? Color.rgb(230, 200, 90) : Color.rgb(230, 60, 50));
-        gc.fillText("SALUD " + p.health + "%", 16, CH - 30);
+        gc.fillText(I18n.tr(String.valueOf("SALUD " + p.health + "%")), 16, CH - 30);
         gc.setFill(Color.rgb(110, 200, 130));
-        gc.fillText("ARMAD " + p.armor + "%", 16, CH - 8);
+        gc.fillText(I18n.tr(String.valueOf("ARMAD " + p.armor + "%")), 16, CH - 8);
 
         gc.setFill(Color.rgb(230, 200, 90));
-        gc.fillText(p.weapon.label, 250, CH - 30);
+        gc.fillText(I18n.tr(String.valueOf(p.weapon.label)), 250, CH - 30);
         if (!p.weapon.isMelee()) {
             int ld = p.loaded[p.weapon.ordinal()];
             boolean rel = p.reloadT > 0;
             gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
             gc.setFill(rel ? Color.rgb(255, 150, 60) : ld == 0 ? Color.rgb(230, 60, 50) : Color.rgb(255, 255, 255));
             gc.setTextAlign(TextAlignment.RIGHT);
-            gc.fillText(rel ? "RECARGANDO" : ld + "/" + p.weapon.mag, 548, CH - 30);
+            gc.fillText(I18n.tr(String.valueOf(rel ? "RECARGANDO" : ld + "/" + p.weapon.mag)), 548, CH - 30);
             gc.setTextAlign(TextAlignment.LEFT);
         }
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
         gc.setFill(Color.rgb(230, 200, 90));
-        gc.fillText("BAL " + p.ammo[0] + " CAR " + p.ammo[1] + " COH " + p.ammo[2] + " CEL " + p.ammo[3], 250, CH - 8);
+        gc.fillText(I18n.tr(String.valueOf(I18n.pick("BAL ", "BUL ") + p.ammo[0] + I18n.pick(" CAR ", " SHL ") + p.ammo[1] + I18n.pick(" COH ", " RKT ") + p.ammo[2] + " CEL " + p.ammo[3])), 250, CH - 8);
 
         // llaves
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 18));
         gc.setFill(Color.rgb(200, 200, 200));
-        gc.fillText("LLAVES", 560, CH - 30);
+        gc.fillText(I18n.tr(String.valueOf("LLAVES")), 560, CH - 30);
         gc.setFill(p.redKey ? Color.rgb(230, 40, 40) : Color.rgb(60, 40, 40));
         gc.fillRect(560, CH - 24, 22, 14);
         gc.setFill(p.blueKey ? Color.rgb(50, 90, 240) : Color.rgb(40, 44, 65));
@@ -401,10 +395,10 @@ public class HudRenderer {
         gc.setFill(Color.rgb(230, 200, 90));
         gc.setTextAlign(TextAlignment.RIGHT);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
-        gc.fillText("DEMONIOS " + alive, CW - 14, CH - 30);
+        gc.fillText(I18n.tr(String.valueOf("DEMONIOS " + alive)), CW - 14, CH - 30);
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 15));
         gc.setFill(Color.rgb(190, 180, 160));
-        gc.fillText(world.levelIndex + "/" + world.levelCount + "  " + world.level.name, CW - 14, CH - 8);
+        gc.fillText(I18n.tr(String.valueOf(world.levelIndex + "/" + world.levelCount + "  " + world.level.name)), CW - 14, CH - 8);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
@@ -425,7 +419,7 @@ public class HudRenderer {
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
         gc.setFill(Color.rgb(255, 235, 130));
-        gc.fillText(boss.type.label.toUpperCase(), CW / 2, y + 36);
+        gc.fillText(I18n.tr(String.valueOf(boss.type.label.toUpperCase())), CW / 2, y + 36);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
@@ -434,9 +428,9 @@ public class HudRenderer {
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
         gc.setFill(Color.rgb(0, 0, 0, 0.6));
-        gc.fillText(world.message, CW / 2 + 2, 44 + 2);
+        gc.fillText(I18n.tr(String.valueOf(world.message)), CW / 2 + 2, 44 + 2);
         gc.setFill(Color.rgb(255, 235, 130, Math.min(1, world.messageTimer * 2)));
-        gc.fillText(world.message, CW / 2, 44);
+        gc.fillText(I18n.tr(String.valueOf(world.message)), CW / 2, 44);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
@@ -448,10 +442,10 @@ public class HudRenderer {
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 52));
         gc.setFill(color);
-        gc.fillText(title, CW / 2, CH / 2 - 5);
+        gc.fillText(I18n.tr(String.valueOf(title)), CW / 2, CH / 2 - 5);
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 22));
         gc.setFill(Color.WHITE);
-        gc.fillText(sub, CW / 2, CH / 2 + 40);
+        gc.fillText(I18n.tr(String.valueOf(sub)), CW / 2, CH / 2 + 40);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
@@ -463,10 +457,10 @@ public class HudRenderer {
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 44));
         gc.setFill(Color.rgb(120, 230, 120));
-        gc.fillText(last ? "HAS TERMINADO EL JUEGO" : "NIVEL COMPLETADO", CW / 2, 120);
+        gc.fillText(I18n.tr(String.valueOf(last ? "HAS TERMINADO EL JUEGO" : "NIVEL COMPLETADO")), CW / 2, 120);
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 24));
         gc.setFill(Color.rgb(230, 200, 90));
-        gc.fillText(world.level.name, CW / 2, 160);
+        gc.fillText(I18n.tr(String.valueOf(world.level.name)), CW / 2, 160);
 
         int secs = (int) world.time;
         java.util.List<String> list = new java.util.ArrayList<>();
@@ -477,11 +471,11 @@ public class HudRenderer {
         String[] lines = list.toArray(new String[0]);
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 28));
-        for (int i = 0; i < lines.length; i++) gc.fillText(lines[i], CW / 2, 250 + i * 46);
+        for (int i = 0; i < lines.length; i++) gc.fillText(I18n.tr(String.valueOf(lines[i])), CW / 2, 250 + i * 46);
 
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 20));
         gc.setFill(Color.rgb(190, 190, 190));
-        gc.fillText(last ? "ENTER: volver al titulo" : "ENTER: siguiente nivel (" + (world.levelIndex + 1) + ")",
+        gc.fillText(I18n.tr(String.valueOf(last ? "ENTER: volver al titulo" : "ENTER: siguiente nivel (" + (world.levelIndex + 1) + ")")),
                 CW / 2, CH - 90);
         gc.setTextAlign(TextAlignment.LEFT);
     }
@@ -541,7 +535,7 @@ public class HudRenderer {
             gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
             gc.setTextAlign(TextAlignment.LEFT);
             gc.setFill(text);
-            gc.fillText((sel ? "> " : "  ") + row.label(), x0 + 16, y + l[1] / 2 + 4);
+            gc.fillText(I18n.tr(String.valueOf((sel ? "> " : "  ") + row.label())), x0 + 16, y + l[1] / 2 + 4);
             if (!row.value().isEmpty()) {
                 gc.setTextAlign(TextAlignment.RIGHT);
                 boolean adjustable = (world.screen == World.Screen.MAIN && idx == 2)
@@ -549,20 +543,20 @@ public class HudRenderer {
                 String v = sel && adjustable ? "<  " + row.value() + "  >" : row.value();
                 gc.setFill(row.enabled() ? (sel ? Color.rgb(255, 235, 130) : Color.rgb(230, 200, 90))
                         : Color.rgb(150, 70, 60));
-                gc.fillText(v, x0 + MENU_W - 16, y + l[1] / 2 + 4);
+                gc.fillText(I18n.tr(String.valueOf(v)), x0 + MENU_W - 16, y + l[1] / 2 + 4);
             }
         }
         if (rows.size() > (int) l[3]) {
             gc.setTextAlign(TextAlignment.CENTER);
             gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 14));
             gc.setFill(Color.rgb(150, 150, 150));
-            if (l[2] > 0) gc.fillText("(mas arriba)", CW / 2, l[0] - 8);
-            if (l[2] + l[3] < rows.size()) gc.fillText("(mas abajo)", CW / 2, l[0] + l[3] * l[1] + 6);
+            if (l[2] > 0) gc.fillText(I18n.tr(String.valueOf("(mas arriba)")), CW / 2, l[0] - 8);
+            if (l[2] + l[3] < rows.size()) gc.fillText(I18n.tr(String.valueOf("(mas abajo)")), CW / 2, l[0] + l[3] * l[1] + 6);
         }
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 15));
         gc.setFill(Color.rgb(150, 150, 150));
-        gc.fillText("ARRIBA/ABAJO mover    ENTER elegir    IZQ/DER cambiar    ESC volver", CW / 2, CH - 16);
+        gc.fillText(I18n.tr(String.valueOf("ARRIBA/ABAJO mover    ENTER elegir    IZQ/DER cambiar    ESC volver")), CW / 2, CH - 16);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
@@ -577,28 +571,28 @@ public class HudRenderer {
         if (world.screen == World.Screen.MAIN) {
             gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 84));
             gc.setFill(Color.rgb(20, 0, 0));
-            gc.fillText("DOOM", CW / 2 + 5, 135);
+            gc.fillText(I18n.tr(String.valueOf("DOOM")), CW / 2 + 5, 135);
             gc.setFill(Color.rgb(210, 40, 20));
-            gc.fillText("DOOM", CW / 2, 130);
+            gc.fillText(I18n.tr(String.valueOf("DOOM")), CW / 2, 130);
             gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
             gc.setFill(Color.rgb(230, 200, 90));
-            gc.fillText("JAVAFX RAYCASTER", CW / 2, 168);
+            gc.fillText(I18n.tr(String.valueOf("JAVAFX RAYCASTER")), CW / 2, 168);
             int done = Math.min(world.progress.unlocked - 1, world.levelCount);
             gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 17));
             gc.setFill(Color.rgb(190, 190, 190));
-            gc.fillText("Niveles completados: " + done + " / " + world.levelCount
-                    + "    Desbloqueado: " + world.progress.unlocked, CW / 2, 205);
+            gc.fillText(I18n.tr(String.valueOf("Niveles completados: " + done + " / " + world.levelCount
+                    + "    Desbloqueado: " + world.progress.unlocked)), CW / 2, 205);
             gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 15));
             gc.setFill(Color.rgb(140, 140, 140));
             String[] help = {
                 "W A S D mover   raton o Q E girar   SHIFT correr   clic o ESPACIO disparar",
-                "F o ENTER usar   1 2 3 o rueda armas   TAB minimapa   P o ESC pausa   F11 pantalla"
+                "F usar   R recargar   1-6 o TAB armas   N minimapa   P o ESC pausa   F11 pantalla"
             };
-            for (int i = 0; i < help.length; i++) gc.fillText(help[i], CW / 2, 500 + i * 22);
+            for (int i = 0; i < help.length; i++) gc.fillText(I18n.tr(String.valueOf(help[i])), CW / 2, 500 + i * 22);
         } else {
             gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 38));
             gc.setFill(Color.rgb(210, 40, 20));
-            gc.fillText(world.menuHeader(), CW / 2, 82);
+            gc.fillText(I18n.tr(String.valueOf(world.menuHeader())), CW / 2, 82);
         }
         gc.setTextAlign(TextAlignment.LEFT);
         drawMenu(gc, world);
@@ -637,24 +631,24 @@ public class HudRenderer {
             gc.setTextAlign(TextAlignment.CENTER);
             gc.setFill(ink);
             gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 13));
-            gc.fillText(ws[i].label, lx, ly - 2);
+            gc.fillText(I18n.tr(String.valueOf(ws[i].label)), lx, ly - 2);
             gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 13));
-            gc.fillText(!own ? "---" : ws[i].isMelee() ? "CUERPO" : p.loaded[i] + "/" + p.ammoFor(ws[i]), lx, ly + 15);
+            gc.fillText(I18n.tr(String.valueOf(!own ? "---" : ws[i].isMelee() ? "CUERPO" : p.loaded[i] + "/" + p.ammoFor(ws[i]))), lx, ly + 15);
             gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 12));
             gc.setFill(Color.rgb(200, 200, 200));
-            gc.fillText(Integer.toString(i + 1), cx + Math.cos(mid) * (ro + 14), cy + Math.sin(mid) * (ro + 14) + 4);
+            gc.fillText(I18n.tr(String.valueOf(Integer.toString(i + 1))), cx + Math.cos(mid) * (ro + 14), cy + Math.sin(mid) * (ro + 14) + 4);
         }
         Weapon cur = ws[world.wheelSel];
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setFill(p.has[world.wheelSel] ? Color.rgb(255, 235, 150) : Color.rgb(150, 150, 150));
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 13));
-        gc.fillText(p.has[world.wheelSel] ? "ELEGIR" : "SIN ARMA", cx, cy - 2);
+        gc.fillText(I18n.tr(String.valueOf(p.has[world.wheelSel] ? "ELEGIR" : "SIN ARMA")), cx, cy - 2);
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 11));
         gc.setFill(Color.rgb(190, 190, 190));
-        gc.fillText(cur.label, cx, cy + 14);
+        gc.fillText(I18n.tr(String.valueOf(cur.label)), cx, cy + 14);
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 15));
         gc.setFill(Color.rgb(210, 210, 210));
-        gc.fillText("Mueve el raton y suelta TAB (o haz clic) para equipar", cx, cy + ro + 34);
+        gc.fillText(I18n.tr(String.valueOf("Mueve el raton y suelta TAB (o haz clic) para equipar")), cx, cy + ro + 34);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
@@ -668,10 +662,10 @@ public class HudRenderer {
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setFill(Color.rgb(255, 235, 130));
         boolean caret = (System.currentTimeMillis() / 500) % 2 == 0;
-        gc.fillText("> " + world.consoleLine + (caret ? "_" : ""), 16, 32);
+        gc.fillText(I18n.tr(String.valueOf("> " + world.consoleLine + (caret ? "_" : ""))), 16, 32);
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 16));
         gc.setFill(Color.rgb(170, 170, 170));
-        gc.fillText(world.consoleReply, 16, 60);
+        gc.fillText(I18n.tr(String.valueOf(world.consoleReply)), 16, 60);
     }
 
     private void drawPause(GraphicsContext gc, World world) {
@@ -680,13 +674,13 @@ public class HudRenderer {
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 44));
         gc.setFill(Color.rgb(230, 200, 90));
-        gc.fillText(world.screen == World.Screen.OPTIONS ? "OPCIONES" : "PAUSA", CW / 2, 100);
+        gc.fillText(I18n.tr(String.valueOf(world.screen == World.Screen.OPTIONS ? "OPCIONES" : "PAUSA")), CW / 2, 100);
         if (world.screen == World.Screen.PAUSE) {
             int secs = (int) world.time;
             gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 18));
             gc.setFill(Color.rgb(190, 190, 190));
-            gc.fillText(String.format("Nivel %d: %s    %d:%02d    enemigos %d/%d", world.levelIndex,
-                    world.level.name, secs / 60, secs % 60, world.kills, world.totalEnemies), CW / 2, 140);
+            gc.fillText(I18n.tr(String.valueOf(String.format("Nivel %d: %s    %d:%02d    enemigos %d/%d", world.levelIndex,
+                    world.level.name, secs / 60, secs % 60, world.kills, world.totalEnemies))), CW / 2, 140);
         }
         gc.setTextAlign(TextAlignment.LEFT);
         drawMenu(gc, world);

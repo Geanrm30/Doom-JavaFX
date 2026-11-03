@@ -44,7 +44,7 @@ derecho para volver y la rueda para moverse.
 
 - **Menu principal:** Jugar o Continuar (el nivel desbloqueado mas alto), Seleccionar nivel,
   Dificultad (Facil: la mitad de dano, Normal, Dificil: 60% mas de dano), Opciones y Salir.
-- **Opciones:** sensibilidad del raton, giro con el raton, volumen, musica, pantalla completa y borrar progreso. Con el raton, pulsa `<` o `>` junto al valor para bajarlo o subirlo; con el teclado usa izquierda y derecha.
+- **Opciones:** sensibilidad del raton, giro con el raton, volumen, musica, pantalla completa, idioma (espanol o ingles) y borrar progreso. Con el raton, pulsa `<` o `>` junto al valor para bajarlo o subirlo; con el teclado usa izquierda y derecha.
 - Al morir, ENTER reintenta el nivel actual.
 
 El juego arranca en pantalla completa (se puede cambiar en Opciones o con F11) y la imagen
@@ -108,7 +108,7 @@ piden la llave de su color, que siempre esta en una zona a la que puedes llegar 
 - Pistola (7 balas por cargador), escopeta (4 cartuchos, 7 perdigones), ametralladora (30), lanzacohetes (1 cohete, dano en area: tambien te hiere si explota cerca) y rifle de plasma (25 celdas).
 - Cada arma tiene su cargador y su tiempo de recarga, con animacion propia: la pistola, la ametralladora y el rifle cambian de cargador, la escopeta mete los cartuchos de uno en uno (puedes interrumpirla disparando) y el lanzacohetes carga un cohete nuevo. Recarga con `R`; al vaciarse el cargador recarga sola.
 - Las cajas de municion dan cargadores completos del arma que uses con esa municion.
-- Katana (tecla 6): arma cuerpo a cuerpo sin municion. Con un enemigo debil o que aun no te ha visto, aparece `EJECUTAR`: clic o `F` y la katana lo remata con una ejecucion que ademas te cura 15 de salud (no funciona con jefes). Si te quedas sin balas pasas a la katana.
+- Katana (tecla 6): arma cuerpo a cuerpo sin municion. Al atacar de cerca a un enemigo debil o que aun no te ha visto, a veces (no siempre) la katana lo remata sola con una ejecucion, sin pulsar nada mas, que ademas te cura 15 de salud (no funciona con jefes). Si te quedas sin balas pasas a la katana.
 - Botiquin, estimulante, armadura, cargadores, cartuchos, cohetes y celdas de energia.
 - Megasalud: salud hasta 200 y armadura al maximo.
 - Esfera de invulnerabilidad: 12 segundos sin recibir dano.
