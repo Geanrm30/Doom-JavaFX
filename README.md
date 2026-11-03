@@ -35,7 +35,8 @@ En Windows: `mvnw.cmd javafx:run`. Desde IntelliJ, ejecuta la clase `doom.Launch
 | ESC o P | Pausa (con el juego en pausa, T vuelve al titulo) |
 | ESC | En el titulo cierra el juego; en las pantallas de muerte y estadisticas vuelve al titulo |
 
-En la pantalla de titulo, izquierda y derecha eligen el nivel inicial. Al morir, ENTER
+En la pantalla de titulo, izquierda y derecha eligen el nivel inicial y arriba y abajo la
+dificultad (Facil: la mitad de dano, Normal, Dificil: 60% mas de dano). Al morir, ENTER
 reintenta el nivel actual.
 
 El juego se pausa solo si la ventana pierde el foco.

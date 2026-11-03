@@ -297,9 +297,12 @@ public class HudRenderer {
         Level preview = Level.load(world.titleLevel);
         String nm = preview != null ? preview.name : "";
         gc.fillText("<  Nivel " + world.titleLevel + ": " + nm + "  >", CW / 2, 300);
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
+        gc.setFill(Color.rgb(230, 200, 90));
+        gc.fillText("Dificultad: " + World.DIFFICULTY[world.difficulty] + "  (ARRIBA/ABAJO)", CW / 2, 335);
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 22));
         gc.setFill(Color.rgb(200, 200, 200));
-        gc.fillText("ENTER: empezar    IZQ/DER: elegir nivel    ESC: salir", CW / 2, 340);
+        gc.fillText("ENTER: empezar    IZQ/DER: elegir nivel    ESC: salir", CW / 2, 372);
 
         gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 17));
         gc.setFill(Color.rgb(150, 150, 150));
@@ -308,7 +311,7 @@ public class HudRenderer {
             "ESPACIO o CTRL disparar   F o ENTER usar (puertas, salida)",
             "1 2 3 armas   TAB minimapa   P pausa   M sonido"
         };
-        for (int i = 0; i < help.length; i++) gc.fillText(help[i], CW / 2, 410 + i * 26);
+        for (int i = 0; i < help.length; i++) gc.fillText(help[i], CW / 2, 430 + i * 26);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 }

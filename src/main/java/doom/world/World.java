@@ -37,6 +37,11 @@ public class World {
     public boolean showMap = true;
     public boolean paused;
 
+    public static final String[] DIFFICULTY = {"Facil", "Normal", "Dificil"};
+    private static final double[] DAMAGE_MULT = {0.5, 1.0, 1.6};
+    /** 0 facil, 1 normal, 2 dificil: cambia el dano que recibes. */
+    public int difficulty = 1;
+
     private final Player levelStart = new Player();
     private final Random rnd = new Random();
 
@@ -131,6 +136,8 @@ public class World {
         switch (state) {
             case TITLE -> {
                 if (k == KeyCode.ENTER || k == KeyCode.SPACE) startGame(titleLevel);
+                else if (k == KeyCode.UP || k == KeyCode.W) difficulty = Math.min(2, difficulty + 1);
+                else if (k == KeyCode.DOWN || k == KeyCode.S) difficulty = Math.max(0, difficulty - 1);
                 else if (k == KeyCode.RIGHT || k == KeyCode.D) titleLevel = Math.min(levelCount, titleLevel + 1);
                 else if (k == KeyCode.LEFT || k == KeyCode.A) titleLevel = Math.max(1, titleLevel - 1);
             }
@@ -256,6 +263,7 @@ public class World {
 
     public void hurtPlayer(int amount) {
         if (state != GameState.PLAYING || player.invuln > 0) return;
+        amount = Math.max(1, (int) Math.round(amount * DAMAGE_MULT[difficulty]));
         if (player.damage(amount)) {
             state = GameState.DEAD;
             sound.play(SoundFx.DEATH);
