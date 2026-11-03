@@ -56,6 +56,8 @@ public class World {
     private static final double[] DAMAGE_MULT = {0.5, 1.0, 1.6};
     /** 0 facil, 1 normal, 2 dificil: cambia el dano que recibes. */
 
+    private final Combo combo = new Combo();
+    private boolean shield, assisted;
     private final Player levelStart = new Player();
     private final Random rnd = new Random();
 
@@ -94,6 +96,7 @@ public class World {
         level = Level.load(index);
         if (level == null) throw new IllegalStateException("Falta el nivel " + index);
         levelIndex = index;
+        assisted = shield || player.ghost;
         player.placeAt(level);
         levelStart.copyInventoryFrom(player);
 
@@ -136,14 +139,39 @@ public class World {
 
     private void finishLevel() {
         int done = levelIndex;
-        if (progress.bestTime[done] <= 0 || time < progress.bestTime[done]) progress.bestTime[done] = time;
+        if (!assisted && (progress.bestTime[done] <= 0 || time < progress.bestTime[done])) progress.bestTime[done] = time;
         if (done + 1 > progress.unlocked && done < levelCount) {
             progress.unlocked = done + 1;
-            progress.storeInventory(player);
+            if (!assisted) progress.storeInventory(player);
         }
         progress.save();
         sound.play(SoundFx.EXIT);
         state = levelIndex >= levelCount ? GameState.WON : GameState.LEVEL_DONE;
+    }
+
+    private void apply(int c) {
+        Player p = player;
+        assisted = true;
+        switch (c) {
+            case Combo.GOD -> { shield = !shield; say("Escudo: " + (shield ? "SI" : "NO"), 1.5); }
+            case Combo.GHOST -> { p.ghost = !p.ghost; say("Fantasma: " + (p.ghost ? "SI" : "NO"), 1.5); }
+            case Combo.ARSENAL -> {
+                p.has[1] = p.has[2] = true;
+                p.ammo[0] = Player.MAX_AMMO[0];
+                p.ammo[1] = Player.MAX_AMMO[1];
+                p.armor = 200;
+                say("Arsenal", 1.5);
+            }
+            case Combo.KEYS -> { p.redKey = p.blueKey = true; say("Llaves", 1.5); }
+            case Combo.HEAL -> { p.health = 200; p.armor = Math.max(p.armor, 100); say("Salud", 1.5); }
+            case Combo.KILL -> {
+                for (Enemy e : enemies) if (e.alive && e.hit(100000)) onKill(e);
+                say("Limpio", 1.5);
+            }
+            case Combo.SKIP -> { finishLevel(); return; }
+            default -> { return; }
+        }
+        sound.play(SoundFx.POWERUP);
     }
 
     /** Mensaje corto en pantalla (lo usa tambien la ventana). */
@@ -166,6 +194,9 @@ public class World {
     }
 
     private void toTitle() {
+        shield = false;
+        player.ghost = false;
+        combo.clear();
         paused = false;
         state = GameState.TITLE;
         screen = Screen.MAIN;
@@ -379,6 +410,10 @@ public class World {
     // ---------------------------------------------------------------- entrada discreta
 
     public void keyPressed(KeyCode k) {
+        if (state == GameState.PLAYING && !paused && k.isLetterKey()) {
+            int c = combo.feed(k.getName().charAt(0));
+            if (c >= 0) apply(c);
+        }
         if (k == KeyCode.M) {
             sound.muted = !sound.muted;
             progress.muted = sound.muted;
@@ -503,7 +538,7 @@ public class World {
     }
 
     public void hurtPlayer(int amount) {
-        if (state != GameState.PLAYING || player.invuln > 0) return;
+        if (state != GameState.PLAYING || player.invuln > 0 || shield) return;
         amount = Math.max(1, (int) Math.round(amount * DAMAGE_MULT[progress.difficulty]));
         if (player.damage(amount)) {
             state = GameState.DEAD;

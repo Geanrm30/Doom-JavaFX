@@ -42,7 +42,7 @@ derecho para volver y la rueda para moverse.
 
 - **Menu principal:** Jugar o Continuar (el nivel desbloqueado mas alto), Seleccionar nivel,
   Dificultad (Facil: la mitad de dano, Normal, Dificil: 60% mas de dano), Opciones y Salir.
-- **Opciones:** sensibilidad del raton, giro con el raton, sonido, pantalla completa y borrar progreso.
+- **Opciones:** sensibilidad del raton, giro con el raton, volumen, pantalla completa y borrar progreso. Con el raton, pulsa `<` o `>` junto al valor para bajarlo o subirlo; con el teclado usa izquierda y derecha.
 - Al morir, ENTER reintenta el nivel actual.
 
 El juego arranca en pantalla completa (se puede cambiar en Opciones o con F11) y la imagen
@@ -108,7 +108,7 @@ piden la llave de su color, que siempre esta en una zona a la que puedes llegar 
 src/main/java/doom/
   DoomApp.java, Launcher.java   ventana y bucle principal
   world/    Level, World, Player, Weapon  (reglas del juego)
-  entities/ Enemy, EnemyType, Projectile, Pickup, Barrel, Effect
+  entities/ Enemy, EnemyType, EnemySprites, Projectile, Pickup, Barrel, Effect
   render/   Renderer (paredes), SpriteRenderer, TextureManager
   hud/      HudRenderer (barra de estado, minimapa, pantallas)
   engine/   Constants, GameState, ColorUtils, SoundFx
@@ -144,5 +144,6 @@ El generador comprueba que todo sea alcanzable y que cada llave aparezca antes d
 ## Notas
 
 - Los niveles son propios; no usan los mapas originales de Doom.
-- El sonido usa `javax.sound`. Si el equipo no tiene dispositivo de audio, el juego
-  sigue funcionando en silencio.
+- El sonido se sintetiza por codigo y se mezcla en una sola linea de `javax.sound`, con
+  paneo y atenuacion segun la posicion de cada sonido. Si el equipo no tiene dispositivo
+  de audio, el juego sigue funcionando en silencio.

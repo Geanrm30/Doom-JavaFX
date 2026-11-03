@@ -66,7 +66,15 @@ public class Player {
         ammo[type] = Math.min(MAX_AMMO[type], ammo[type] + n);
     }
 
+    public boolean ghost;
+
     public void tryMove(Level level, double dx, double dy) {
+        if (ghost) {
+            double gx = x + dx, gy = y + dy;
+            if (gx > 1.3 && gx < level.width - 1.3) x = gx;
+            if (gy > 1.3 && gy < level.height - 1.3) y = gy;
+            return;
+        }
         double r = 0.22;
         double nx = x + dx, ny = y + dy;
         double sx = dx > 0 ? r : -r, sy = dy > 0 ? r : -r;
