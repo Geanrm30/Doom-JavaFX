@@ -54,6 +54,7 @@ public class HudRenderer {
             drawMessage(gc, world);
         }
 
+        if (world.wheelOpen && st == GameState.PLAYING) drawWheel(gc, world);
         if (world.consoleOpen) drawConsole(gc, world);
 
         switch (st) {
@@ -425,6 +426,60 @@ public class HudRenderer {
         }
         gc.setTextAlign(TextAlignment.LEFT);
         drawMenu(gc, world);
+    }
+
+    /** Rueda de armas (mantener TAB): un sector por arma, el cursor resalta el que se equipara al soltar. */
+    private void drawWheel(GraphicsContext gc, World world) {
+        Player p = world.player;
+        Weapon[] ws = Weapon.values();
+        int n = ws.length;
+        double cx = CW / 2, cy = CH / 2 - 14, ro = 158, ri = 62;
+        gc.setFill(Color.rgb(0, 0, 0, 0.5));
+        gc.fillRect(0, 0, CW, CH);
+        double seg = 2 * Math.PI / n, gap = 0.035;
+        for (int i = 0; i < n; i++) {
+            double mid = -Math.PI / 2 + i * seg;
+            double a0 = mid - seg / 2 + gap, a1 = mid + seg / 2 - gap;
+            int pts = 16;
+            double[] xs = new double[pts * 2], ys = new double[pts * 2];
+            for (int k = 0; k < pts; k++) {
+                double a = a0 + (a1 - a0) * k / (pts - 1);
+                xs[k] = cx + Math.cos(a) * ro;
+                ys[k] = cy + Math.sin(a) * ro;
+                xs[pts * 2 - 1 - k] = cx + Math.cos(a) * ri;
+                ys[pts * 2 - 1 - k] = cy + Math.sin(a) * ri;
+            }
+            boolean sel = i == world.wheelSel, own = p.has[i];
+            gc.setFill(sel ? Color.rgb(235, 190, 60, 0.88) : own ? Color.rgb(30, 30, 34, 0.82) : Color.rgb(20, 20, 22, 0.55));
+            gc.fillPolygon(xs, ys, pts * 2);
+            gc.setStroke(sel ? Color.rgb(255, 235, 150) : Color.rgb(110, 110, 118, own ? 0.9 : 0.4));
+            gc.setLineWidth(sel ? 2.5 : 1);
+            gc.strokePolygon(xs, ys, pts * 2);
+
+            double lx = cx + Math.cos(mid) * (ri + ro) / 2, ly = cy + Math.sin(mid) * (ri + ro) / 2;
+            Color ink = sel ? Color.rgb(25, 18, 5) : own ? Color.rgb(225, 225, 225) : Color.rgb(110, 110, 110);
+            gc.setTextAlign(TextAlignment.CENTER);
+            gc.setFill(ink);
+            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 13));
+            gc.fillText(ws[i].label, lx, ly - 2);
+            gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 13));
+            gc.fillText(own ? Integer.toString(p.ammoFor(ws[i])) : "---", lx, ly + 15);
+            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 12));
+            gc.setFill(Color.rgb(200, 200, 200));
+            gc.fillText(Integer.toString(i + 1), cx + Math.cos(mid) * (ro + 14), cy + Math.sin(mid) * (ro + 14) + 4);
+        }
+        Weapon cur = ws[world.wheelSel];
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setFill(p.has[world.wheelSel] ? Color.rgb(255, 235, 150) : Color.rgb(150, 150, 150));
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 13));
+        gc.fillText(p.has[world.wheelSel] ? "ELEGIR" : "SIN ARMA", cx, cy - 2);
+        gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 11));
+        gc.setFill(Color.rgb(190, 190, 190));
+        gc.fillText(cur.label, cx, cy + 14);
+        gc.setFont(Font.font("Monospaced", FontWeight.NORMAL, 15));
+        gc.setFill(Color.rgb(210, 210, 210));
+        gc.fillText("Mueve el raton y suelta TAB (o haz clic) para equipar", cx, cy + ro + 34);
+        gc.setTextAlign(TextAlignment.LEFT);
     }
 
     private void drawConsole(GraphicsContext gc, World world) {

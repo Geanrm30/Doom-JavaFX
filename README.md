@@ -24,14 +24,15 @@ En Windows: `mvnw.cmd javafx:run`. Desde IntelliJ, ejecuta la clase `doom.Launch
 | Raton | Girar (el cursor se oculta y se recentra solo) |
 | Clic izquierdo | Disparar |
 | Clic derecho | Usar |
-| Rueda del raton | Cambiar de arma |
+| Rueda del raton | Cambiar de arma (con la rueda de armas abierta, mueve la seleccion) |
 | L | Activar o desactivar el giro con el raton |
 | F11 | Pantalla completa o ventana |
 | SHIFT | Correr |
 | ESPACIO o CTRL | Disparar |
 | F o ENTER | Usar (abrir puertas, activar la salida) |
 | 1 2 3 4 5 | Cambiar de arma |
-| TAB | Mostrar u ocultar el minimapa |
+| TAB (mantener) | Rueda de armas: mueve el raton hacia el arma y suelta TAB (o haz clic). El tiempo se ralentiza mientras eliges |
+| N | Mostrar u ocultar el minimapa |
 | M | Silenciar o activar el sonido |
 | ESC o P | Pausa. El menu de pausa permite continuar, cambiar opciones, volver al titulo o salir |
 | ESC | En los menus vuelve atras; en las pantallas de muerte y estadisticas vuelve al titulo |
@@ -129,6 +130,8 @@ tools/generate_levels.py        generador de niveles
 
 Los niveles son archivos de texto: una cabecera (nombre, colores, niebla) y un mapa de
 caracteres. Si agregas `level10.txt`, el juego lo detecta solo.
+
+Las armas que un nivel no trae fijas pueden aparecer en un lugar al azar distinto en cada partida.
 
 Leyenda del mapa:
 

@@ -81,6 +81,7 @@ public class DoomApp extends Application {
                 return;
             }
             if (isConsoleKey(e)) {
+                consoleStamp = System.nanoTime();
                 world.toggleConsole();
                 input.releaseAll();
                 resetMouse();
@@ -103,21 +104,44 @@ public class DoomApp extends Application {
                 resetMouse();
                 world.notice(input.mouseLook ? "Giro con el raton: SI" : "Giro con el raton: NO");
             } else {
+                boolean wasOpen = world.wheelOpen;
                 world.keyPressed(e.getCode());
+                if (world.wheelOpen && !wasOpen) centerCursor(stage, scene);
                 if (e.getCode() == KeyCode.ENTER || e.getCode() == KeyCode.SPACE) resetMouse();
             }
             e.consume();
         });
-        scene.setOnKeyReleased(e -> input.keyReleased(e.getCode()));
+        // respaldo: algunas distribuciones de teclado no informan bien el codigo de la tecla,
+        // pero el caracter escrito si llega
+        scene.setOnKeyTyped(e -> {
+            String t = e.getCharacter();
+            if (t == null || t.length() != 1 || "`\u00ba\u00aa\u00b0|\u00ac\\".indexOf(t.charAt(0)) < 0) return;
+            if (System.nanoTime() - consoleStamp < 300_000_000L) return;
+            consoleStamp = System.nanoTime();
+            world.toggleConsole();
+            input.releaseAll();
+            resetMouse();
+        });
+        scene.setOnKeyReleased(e -> {
+            input.keyReleased(e.getCode());
+            if (e.getCode() == KeyCode.TAB && world.wheelOpen) {
+                world.closeWheel(true);
+                resetMouse();
+            }
+        });
 
         scene.setOnMouseMoved(e -> {
+            if (world.wheelOpen) world.wheelPoint(virtualX(e) - VW / 2.0, virtualY(e) - VH / 2.0);
             if (world.inMenu()) {
                 int row = hudRenderer.rowAt(world, virtualX(e), virtualY(e));
                 if (row >= 0) world.menuSelect(row);
             }
             onMouse(stage, scene, e);
         });
-        scene.setOnMouseDragged(e -> onMouse(stage, scene, e));
+        scene.setOnMouseDragged(e -> {
+            if (world.wheelOpen) world.wheelPoint(virtualX(e) - VW / 2.0, virtualY(e) - VH / 2.0);
+            onMouse(stage, scene, e);
+        });
         scene.setOnMousePressed(e -> {
             if (world.inMenu()) {
                 if (e.getButton() == MouseButton.PRIMARY) {
@@ -129,6 +153,11 @@ public class DoomApp extends Application {
                     }
                 } else if (e.getButton() == MouseButton.SECONDARY) {
                     world.menuBack();
+                    resetMouse();
+                }
+            } else if (world.wheelOpen) {
+                if (e.getButton() == MouseButton.PRIMARY) {
+                    world.closeWheel(true);
                     resetMouse();
                 }
             } else if (e.getButton() == MouseButton.PRIMARY) {
@@ -216,7 +245,7 @@ public class DoomApp extends Application {
     }
 
     private boolean mouseActive(Stage stage) {
-        return input.mouseLook && world.state == GameState.PLAYING && !world.paused && stage.isFocused();
+        return input.mouseLook && world.state == GameState.PLAYING && !world.paused && !world.wheelOpen && stage.isFocused();
     }
 
     /** Descarta la referencia del raton (al cambiar de menu, perder el foco, etc.) para que no haya saltos. */
@@ -230,8 +259,9 @@ public class DoomApp extends Application {
     /** Teclas que abren la consola en cualquier distribucion de teclado. */
     private static boolean isConsoleKey(javafx.scene.input.KeyEvent e) {
         KeyCode c = e.getCode();
-        if (c == KeyCode.BACK_QUOTE || c == KeyCode.DEAD_GRAVE || c == KeyCode.F2) return true;
+        if (c == KeyCode.BACK_QUOTE || c == KeyCode.DEAD_GRAVE || c == KeyCode.F2 || c == KeyCode.INSERT) return true;
         if (c == KeyCode.T && e.isControlDown()) return true;
+        if (c == KeyCode.C && e.isControlDown() && e.isShiftDown()) return true;
         String t = e.getText();
         return t != null && t.length() == 1 && "`\u00ba\u00aa\u00b0|\u00ac\\".indexOf(t.charAt(0)) >= 0;
     }
@@ -292,6 +322,19 @@ public class DoomApp extends Application {
         }
     }
 
+    /** Coloca el cursor en el centro de la ventana (al abrir la rueda de armas). */
+    private void centerCursor(Stage stage, Scene scene) {
+        if (robot == null) return;
+        try {
+            double cx = stage.getX() + scene.getX() + scene.getWidth() / 2;
+            double cy = stage.getY() + scene.getY() + scene.getHeight() / 2;
+            double k = calib[calibIdx];
+            robot.mouseMove((int) Math.round(cx * k), (int) Math.round(cy * k));
+        } catch (Throwable t) {
+            robot = null;
+        }
+    }
+
     private void nextCalibration() {
         miscal = 0;
         if (++calibIdx >= calib.length) {
@@ -300,6 +343,8 @@ public class DoomApp extends Application {
             world.notice("Giro del raton sin recentrado (mueve el raton dentro de la ventana)");
         }
     }
+
+    private long consoleStamp;
 
     public static void main(String[] args) {
         launch(args);

@@ -232,17 +232,20 @@ public final class Level {
     }
 
     /** Empieza a abrir la puerta; si ya esta abierta, reinicia la espera. */
-    public void open(int cx, int cy) {
-        if (cx < 0 || cy < 0 || cx >= width || cy >= height) return;
+    /** Abre la puerta. Devuelve true solo si empieza a moverse (para que suene una vez, no en cada pulsacion). */
+    public boolean open(int cx, int cy) {
+        if (cx < 0 || cy < 0 || cx >= width || cy >= height) return false;
         if (!isDoor(cells[cy][cx])) {
             cells[cy][cx] = '.';
-            return;
+            return false;
         }
         if (doorPhase[cy][cx] == 2) {
             doorTimer[cy][cx] = (float) DOOR_HOLD;
-        } else if (doorPhase[cy][cx] != 1) {
-            doorPhase[cy][cx] = 1;
+            return false;
         }
+        if (doorPhase[cy][cx] == 1) return false;
+        doorPhase[cy][cx] = 1;
+        return true;
     }
 
     /** True si la puerta empezo a cerrarse en este paso (para el sonido). */

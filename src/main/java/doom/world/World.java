@@ -57,6 +57,9 @@ public class World {
     /** 0 facil, 1 normal, 2 dificil: cambia el dano que recibes. */
 
     public boolean consoleOpen;
+    /** Rueda de armas abierta (se mantiene TAB): el tiempo corre muy lento mientras se elige. */
+    public boolean wheelOpen;
+    public int wheelSel;
     public final StringBuilder consoleLine = new StringBuilder();
     public String consoleReply = "";
     private boolean shield, assisted;
@@ -121,6 +124,7 @@ public class World {
             int pt = Pickup.fromChar(t.type());
             if (pt >= 0) pickups.add(new Pickup(t.x(), t.y(), pt));
         }
+        scatterWeapons(index);
         kills = 0;
         items = 0;
         secretsFound = 0;
@@ -155,7 +159,8 @@ public class World {
     public void toggleConsole() {
         if (consoleOpen) {
             consoleOpen = false;
-        } else if (state == GameState.PLAYING && !paused) {
+        } else if (state == GameState.PLAYING) {
+            wheelOpen = false;
             consoleOpen = true;
             consoleLine.setLength(0);
             consoleReply = "";
@@ -442,6 +447,36 @@ public class World {
         }
     }
 
+    /**
+     * Las armas que el nivel no trae fijas pueden aparecer en un lugar al azar (distinto en cada partida).
+     * Las que el mapa ya incluye siguen siendo seguras.
+     */
+    private void scatterWeapons(int index) {
+        int[][] table = {   // tipo de arma, nivel minimo, probabilidad en %
+                {Pickup.SHOTGUN, 2, 55}, {Pickup.CHAINGUN, 3, 45},
+                {Pickup.LAUNCHER, 4, 40}, {Pickup.PLASMA, 6, 35}};
+        level.updateFlow(player.x, player.y);
+        for (int[] w : table) {
+            if (index < w[1] || rnd.nextInt(100) >= w[2]) continue;
+            boolean fixed = false;
+            for (Pickup pk : pickups) if (pk.type == w[0]) fixed = true;
+            if (fixed) continue;
+            for (int tries = 0; tries < 200; tries++) {
+                int cx = 1 + rnd.nextInt(level.width - 2), cy = 1 + rnd.nextInt(level.height - 2);
+                if (level.cell(cx, cy) != '.') continue;
+                int f = level.flowAt(cx, cy);
+                if (f == Level.UNREACHABLE || f < 6) continue;
+                double x = cx + 0.5, y = cy + 0.5;
+                boolean busy = false;
+                for (Level.Thing t : level.things) if (Math.hypot(t.x() - x, t.y() - y) < 0.9) busy = true;
+                for (Pickup pk : pickups) if (Math.hypot(pk.x - x, pk.y - y) < 0.9) busy = true;
+                if (busy) continue;
+                pickups.add(new Pickup(x, y, w[0]));
+                break;
+            }
+        }
+    }
+
     private void say(String msg, double secs) {
         message = msg;
         messageTimer = secs;
@@ -466,7 +501,8 @@ public class World {
                 }
                 switch (k) {
                     case F, ENTER -> use();
-                    case TAB -> showMap = !showMap;
+                    case TAB -> openWheel();
+                    case N -> showMap = !showMap;
                     case P -> pause();
                     case DIGIT1, NUMPAD1 -> selectWeapon(0);
                     case DIGIT2, NUMPAD2 -> selectWeapon(1);
@@ -488,8 +524,37 @@ public class World {
         }
     }
 
+    public void openWheel() {
+        if (state != GameState.PLAYING || paused || consoleOpen || wheelOpen) return;
+        wheelOpen = true;
+        wheelSel = player.weapon.ordinal();
+    }
+
+    /** Cierra la rueda; con {@code apply} se equipa el arma resaltada. */
+    public void closeWheel(boolean apply) {
+        if (!wheelOpen) return;
+        wheelOpen = false;
+        if (!apply) return;
+        if (player.has[wheelSel]) player.weapon = Weapon.values()[wheelSel];
+        else say("No tienes esa arma", 1.5);
+    }
+
+    /** Posicion del cursor respecto al centro de la pantalla (en pixeles virtuales). */
+    public void wheelPoint(double dx, double dy) {
+        if (!wheelOpen || Math.hypot(dx, dy) < 40) return;
+        int n = Weapon.values().length;
+        double a = Math.atan2(dx, -dy);                 // 0 arriba, creciente en sentido horario
+        int i = (int) Math.round(a / (2 * Math.PI / n));
+        wheelSel = ((i % n) + n) % n;
+    }
+
     /** Rueda del raton: siguiente (+1) o anterior (-1) arma disponible. */
     public void cycleWeapon(int dir) {
+        if (wheelOpen) {
+            int n = Weapon.values().length;
+            wheelSel = ((wheelSel + dir) % n + n) % n;
+            return;
+        }
         if (state != GameState.PLAYING || paused || consoleOpen) return;
         int n = Weapon.values().length;
         int i = player.weapon.ordinal();
@@ -503,6 +568,7 @@ public class World {
     }
 
     private void selectWeapon(int i) {
+        wheelOpen = false;
         if (!player.has[i]) {
             say("No tienes esa arma", 1.5);
             return;
@@ -527,6 +593,12 @@ public class World {
     }
 
     public void update(double dt, Set<KeyCode> keys, double mouseTurn, boolean mouseFire) {
+        if (wheelOpen && (state != GameState.PLAYING || paused || consoleOpen)) wheelOpen = false;
+        if (wheelOpen) {
+            dt *= 0.12;
+            mouseTurn = 0;
+            mouseFire = false;
+        }
         Player p = player;
 
         if (messageTimer > 0) messageTimer -= dt;
@@ -696,6 +768,10 @@ public class World {
         return true;
     }
 
+    private void doorSound(boolean started, int cx, int cy) {
+        if (started) sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5);
+    }
+
     /** Usar: abre puertas y activa la salida que tengas enfrente. */
     private void use() {
         Player p = player;
@@ -705,22 +781,21 @@ public class World {
             char c = level.cell(cx, cy);
             if (c == '.') continue;
             switch (c) {
-                case 'D' -> { level.open(cx, cy); sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5); }
+                case 'D' -> doorSound(level.open(cx, cy), cx, cy);
                 case 'S' -> {
                     if (level.openness(cx, cy) == 0) {
                         secretsFound++;
                         say("Has encontrado un secreto", 2.5);
                         sound.play(SoundFx.KEY);
                     }
-                    level.open(cx, cy);
-                    sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5);
+                    doorSound(level.open(cx, cy), cx, cy);
                 }
                 case 'R' -> {
-                    if (p.redKey) { level.open(cx, cy); sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5); }
+                    if (p.redKey) doorSound(level.open(cx, cy), cx, cy);
                     else { say("Necesitas la llave ROJA", 2.0); sound.play(SoundFx.DENIED); }
                 }
                 case 'U' -> {
-                    if (p.blueKey) { level.open(cx, cy); sound.play(SoundFx.DOOR, cx + 0.5, cy + 0.5); }
+                    if (p.blueKey) doorSound(level.open(cx, cy), cx, cy);
                     else { say("Necesitas la llave AZUL", 2.0); sound.play(SoundFx.DENIED); }
                 }
                 case 'X' -> {
